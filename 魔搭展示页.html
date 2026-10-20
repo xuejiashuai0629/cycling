@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华为 PC 营销创作台 · 浙客松</title>
+<style>
+  body {font-family: "Microsoft YaHei", "PingFang SC", sans-serif; max-width: 860px; margin: 0 auto; padding: 40px 24px; color: #22252b; line-height: 1.8; background: #f7f7f4;}
+  h1 {font-size: 28px; margin-bottom: 4px;}
+  h2 {font-size: 19px; margin-top: 36px; border-left: 4px solid #c7000b; padding-left: 10px;}
+  .sub {color: #777e77; margin-top: 0;}
+  .card {background: #fff; border: 1px solid #e1e2dc; border-radius: 12px; padding: 18px 22px; margin: 14px 0;}
+  .tag {display: inline-block; background: #eeefeb; border-radius: 6px; padding: 2px 10px; font-size: 13px; margin: 2px 4px 2px 0;}
+  a {color: #c7000b;}
+  table {border-collapse: collapse; width: 100%; background: #fff;}
+  td, th {border: 1px solid #e1e2dc; padding: 8px 12px; font-size: 14px; text-align: left;}
+  .flow {background:#fff;border:1px solid #e1e2dc;border-radius:12px;padding:16px 20px;font-size:15px;}
+  img {max-width:100%;height:auto;border:1px solid #e1e2dc;border-radius:8px;}
+  .notice {background:#fff6e9;border-left:4px solid #ba761c;padding:14px 18px;}
+</style>
+</head>
+<body>
+
+<h1>华为 PC 营销创作台</h1>
+<p class="sub">浙客松 · 华为产业进阶赛道 · AI+华为PC营销软文智能体</p>
+<p class="notice">这是项目展示页，提供功能介绍、真实运行截图及源码入口；交互创作台请按照 GitHub README 在本地运行。图片画面型号仍需人工核验，不将待确认事项标成通过。</p>
+
+<div class="card">
+<b>一句话介绍：</b>面向华为门店导购的自研营销 Agent。导购用自然语言描述任务，系统完成"理解需求 → 查找资料 → 选择图片 → 生成内容 → 核验结果"闭环，交付有知识库依据、经过六项核验的图文软文。ima 仅作为产品事实与图片素材来源，策略、组织与核验均为自研。
+</div>
+
+<h2>核心流程</h2>
+<div class="flow">需求理解（缺项一次列齐，追问不用假设）→ 用户确认 → ima 知识库检索 → 图文写作 → 独立审核（六项检查，不过退回重写）→ 四板块交付（场景判断 / 知识库依据 / 图文软文 / 核验结果）</div>
+
+<h2>关键能力</h2>
+<div class="card">
+<span class="tag">场景自由描述</span><span class="tag">笼统场景强制追问</span><span class="tag">四平台规则</span><span class="tag">事实逐条对应原文</span><span class="tag">相近型号隔离</span><span class="tag">合规拦截</span><span class="tag">正文真实图片</span><span class="tag">ZIP 图文下载</span><span class="tag">130 项离线测试</span>
+<ul>
+<li><b>不懂就问，绝不硬写：</b>只填"学习""办公"会被继续追问实际任务、软件与负载；型号疑似有误先澄清。</li>
+<li><b>无依据不生成：</b>价格、补贴、库存、绝对化宣传、无依据对比、竞品贬低一律拦截或标注待确认；知识库未收录的型号不凭模型记忆编造。</li>
+<li><b>证据链交付：</b>每个产品事实对应知识库原文摘录；每张图片带来源、说明与插入位置；资料冲突阻断并提示人工确认。</li>
+<li><b>诚实标注：</b>图片画面型号、外部待确认事项明确标"待核验"，不标全部通过。</li>
+</ul>
+</div>
+
+<h2>真实运行结果</h2>
+<div class="card">已验证完整案例：MateBook GT 14 / 大学生社团视频剪辑 / 门店朋友圈——经 2 次退回修改、3 轮独立审核后五项核验通过；价格卡显示商品已下架，成稿未虚构在售价格。更多截图与记录见 GitHub 仓库《作品说明书》《验证记录》。</div>
+<p>下列截图来自另一组任务：大一新生用 MateBook GT 14 自习写论文，发布到门店朋友圈。截图时 ima 资料读取额度耗尽，使用明确标注的本地资料测试；需求理解、写作和审核仍真实调用 DeepSeek。该组经 5 次退回修改后五项通过，资料来源与图片画面型号保留待核验。</p>
+<div class="card"><h3>1. 对话理解与追问</h3><img src="说明书配图/1-需求理解.png" alt="需求理解对话与场景追问截图"></div>
+<div class="card"><h3>2. 资料及配图依据</h3><img src="说明书配图/2-场景与依据.png" alt="读取资料和图片来源截图"></div>
+<div class="card"><h3>3. 图文软文</h3><img src="说明书配图/3-图文软文.png" alt="朋友圈正文与实际图片截图"></div>
+<div class="card"><h3>4. 核验结果</h3><img src="说明书配图/4-核验结果.png" alt="逐项审核结果与待核验说明截图"></div>
+
+<h2>技术要点</h2>
+<table>
+<tr><th>项</th><th>说明</th></tr>
+<tr><td>架构</td><td>三个轻量角色（需求理解+查资料 / 写作 / 独立审核）共用 DeepSeek 适配器，按角色使用不同系统提示词</td></tr>
+<tr><td>资料来源</td><td>官方 ima Skill（ima_api.cjs）读取指定共享知识库"任德耀新建华为PC知识库"</td></tr>
+<tr><td>界面</td><td>Streamlit 对话式界面（Python 3.15.0 / Streamlit 1.66.0）</td></tr>
+<tr><td>质量保障</td><td>130 项自动化离线检查；四平台真实配图文件交付门槛；真实/本地两种资料来源严格隔离，本地模式强制标注"未调用 ima"</td></tr>
+</table>
+
+<h2>链接</h2>
+<div class="card">
+GitHub 仓库（源码、README、作品说明书、运行截图）：<a href="https://github.com/cycling66666/cycling">https://github.com/cycling66666/cycling</a>
+</div>
+
+</body>
+</html>

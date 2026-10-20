@@ -1,0 +1,23 @@
+# 本地赛事资料，保留在电脑上，不纳入代码提交。
+/华为PC全板块深度知识库_v7/
+/华为·产业进阶赛道·赛题手册v4.pdf
+/2c34a6c85da71d5f1a7ece93dfdc15c0.jpg
+
+# 下载原包、工作文件和官方更新检查记录。
+/downloads/
+/tmp/
+/.ima-state/
+/outputs/
+
+# 本地凭证和 Python 运行环境。
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+client_id
+api_key
+secrets.json
+__pycache__/
+*.py[cod]
+.venv/
+venv/

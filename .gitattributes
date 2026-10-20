@@ -1,0 +1,3 @@
+# 保持官方解压文件的原始字节，避免 Windows 自动转换换行。
+ima-skill/** -text
+__MACOSX/** -text
