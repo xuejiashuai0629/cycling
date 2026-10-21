@@ -43,6 +43,15 @@ def items(data: dict) -> list[dict]:
     return [item for item in value if isinstance(item, dict)]
 
 
+def document_priority(item: dict) -> tuple[int, str]:
+    text = (item.get("title", "") + item.get("folder_path", "") + item.get("folder_title", "")).lower()
+    if any(word in text for word in ("产品事实", "卖点与限制", "参数", "规格")):
+        return 0, text
+    if any(word in text for word in ("小红书", "朋友圈", "新闻稿")):
+        return 2, text
+    return 1, text
+
+
 class ImaClient:
     def __init__(self, total_timeout: float = TOTAL_TIMEOUT):
         self.environment = ima_environment()
@@ -211,7 +220,7 @@ def collect_sources(product: str, request_id: str, image_count: int) -> dict:
     candidates = client.candidates(kb_id, product)
     documents = [item for item in candidates if item.get("media_type") == 7 or Path(item.get("title", "")).suffix.lower() in (".md", ".txt")]
     pictures = [item for item in candidates if item.get("media_type") == 9]
-    documents.sort(key=lambda item: ("参数" not in item.get("title", ""), len(item.get("title", ""))))
+    documents.sort(key=document_priority)
     sources, images, warnings = [], [], []
     if not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", request_id):
         raise KnowledgeError("本次任务编号格式异常。")

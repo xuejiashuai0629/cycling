@@ -70,12 +70,14 @@ def queue_action(action: str) -> None:
 
 
 def generate_to_completion(result: dict) -> dict:
-    """Finish the initial write/review job without bouncing through reruns."""
+    """Finish the initial write/review job without unbounded token burn."""
     response = agent.generate_content(result)
-    for _ in range(8):
+    for _ in range(2):
         if response.get("status") != "ok" or response.get("data", {}).get("stage") not in ("rewriting", "review_retry"):
             break
         response = agent.generate_content(response, resume=True)
+    if response.get("status") == "ok" and response.get("data", {}).get("stage") in ("rewriting", "review_retry"):
+        response = {**response, "status": "error", "message": "已尝试 3 次仍未通过证据引用或审核校验，已暂停自动重写，避免继续消耗额度。你可以先调整需求，再点击继续写作与审核。"}
     return response
 
 

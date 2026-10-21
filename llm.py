@@ -1,6 +1,7 @@
 """Shared DeepSeek JSON adapter for understanding, writing and review."""
 
 import json
+import re
 import socket
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -79,12 +80,30 @@ def system_prompt() -> str:
     return prompt("system")
 
 
+def evidence_pool(text: str, *, max_items: int = 80) -> list[str]:
+    """Give the writer exact, short spans it can copy without paraphrasing."""
+    pool = []
+    for raw in text.splitlines():
+        value = raw.strip()
+        if len(value) < 8 or len(value) > 400:
+            continue
+        if re.search(r"文档用途|使用对象|内容性质|事实边界|交付格式|正文结构|输出 JSON|合规与校验|不得|不要|禁止|应当|必须", value):
+            continue
+        pool.append(value)
+    return pool[:max_items]
+
+
 def evidence_for_model(data: dict) -> dict:
     from content_review import writing_contract
+    pool = []
+    for source in data["sources"]:
+        for quote in evidence_pool(source["text"]):
+            pool.append({"source_id": source["source_id"], "quote": quote})
     return {
         "task": data["task"], "strategy": data["strategy"],
         "writing_contract": writing_contract(data),
         "sources": [{"source_id": item["source_id"], "title": item["title"], "text": item["text"][:16000]} for item in data["sources"]],
+        "evidence_pool": pool,
         "images": [{"source_id": item["source_id"], "title": item["title"]} for item in data["images"]],
         "limitations": "每份文字最多提供前16000字符；图片只提供标题，尚未检查图像内容。",
     }

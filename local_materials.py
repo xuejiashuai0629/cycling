@@ -30,7 +30,7 @@ def collect_local_sources(product: str, request_id: str, image_count: int) -> di
         context = path.parent.relative_to(local_root).as_posix()
         if matches_product(product, path.name) or (not model_names(path.name) and matches_product(product, context)):
             candidates.append(path)
-    documents = sorted((p for p in candidates if p.suffix.lower() in (".md", ".txt")), key=lambda p: ("参数" not in p.name, len(p.name), p.as_posix()))
+    documents = sorted((p for p in candidates if p.suffix.lower() in (".md", ".txt")), key=document_priority)
     pictures = sorted((p for p in candidates if p.suffix.lower() in (".png", ".jpg", ".jpeg")), key=lambda p: ("主视觉" not in p.name, p.as_posix()))
     sources, images, warnings = [], [], [LOCAL_NOTICE]
     for paths, target, limit in ((documents, sources, 3), (pictures, images, image_count)):
@@ -91,3 +91,12 @@ def product_candidates() -> list[dict]:
             "source_path": path.relative_to(ROOT).as_posix(),
         })
     return sorted(result, key=lambda item: item["product"])
+
+
+def document_priority(path: Path) -> tuple[int, str]:
+    text = (path.name + path.as_posix()).lower()
+    if "产品事实" in text or "卖点与限制" in text or "参数" in text or "规格" in text:
+        return 0, text
+    if "小红书" in text or "朋友圈" in text or "新闻稿" in text:
+        return 2, text
+    return 1, text
