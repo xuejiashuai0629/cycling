@@ -27,6 +27,15 @@ class ContentTests(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 validate_draft(draft, prepared()["data"])
 
+    def test_layout_differences_do_not_break_valid_evidence(self):
+        draft = deepcopy(DRAFT)
+        draft["claims"][0].update({
+            "text": "提供  资料整理\n功能。",
+            "quote": "提供  资料整理功能。",
+        })
+        draft["body"] = draft["body"].replace("提供资料整理功能。", "提供\t资料整理功能。")
+        validate_draft(draft, prepared()["data"])
+
     def test_unknown_or_duplicate_images_are_rejected(self):
         for images in ([{"source_id": "I99", "position": "正文", "description": "候选"}], [DRAFT["image_plan"][0]] * 2):
             with self.assertRaises(ValueError):
@@ -312,7 +321,7 @@ class ContentTests(unittest.TestCase):
             self.assertNotIn(DRAFT["title"], agent.export_markdown(first))
             review.assert_not_called()
             result = agent.generate_content(first, resume=True)
-        self.assertIn("事实引用", write.call_args.kwargs["feedback"][0])
+        self.assertIn("事实摘录", write.call_args.kwargs["feedback"][0])
         self.assertEqual(result["data"]["draft"], DRAFT)
 
     def test_invalid_review_retries_reviewer_without_rewriting(self):

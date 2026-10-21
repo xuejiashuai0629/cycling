@@ -71,7 +71,7 @@ def draft_issues(draft: dict, data: dict) -> dict[str, list[str]]:
     # A model cannot bypass the evidence gate by leaving claims empty or citing
     # a valid but unrelated sentence containing a different numeric value.
     for point in draft["selling_points"]:
-        if not any(point in claim["text"] for claim in claims):
+        if not any(norm(point) in norm(claim["text"]) for claim in claims):
             issues["产品事实"].append("正文卖点缺少对应的事实点与原文摘录：" + point + "。selling_points只列正文中的产品事实原句，必须逐字包含在某条claims.text内；场景建议另写，不混入卖点清单。quote须保留原文限定条件。")
     for claim in claims:
         if quantities(claim["text"]) - quantities(claim["quote"]):
