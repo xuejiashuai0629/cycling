@@ -94,6 +94,14 @@ def understand(user_text: str, history: list, previous: dict | None) -> dict:
     return complete_json(prompt("understanding") + "\n" + prompt("scenario_reference"), {"history": history, "user_text": user_text, "previous": previous})
 
 
+def select_product(task: dict, candidates: list[dict]) -> str:
+    result = complete_json(prompt("product_selection"), {"task": task, "candidates": candidates}, max_tokens=200)
+    product = result.get("product", "")
+    if not isinstance(product, str) or product.strip() not in {item["product"] for item in candidates}:
+        raise ModelError("模型没有从候选型号中选择，请重试。")
+    return product.strip()
+
+
 def generate(task: dict, evidence: dict, *, previous_draft: dict | None = None, feedback: list[str] | None = None) -> dict:
     payload = evidence_for_model(evidence)
     if previous_draft is not None:

@@ -71,3 +71,23 @@ def collect_local_sources(product: str, request_id: str, image_count: int) -> di
     if len(images) < image_count:
         warnings.append(f"本地只有 {len(images)} 张可读取的候选图，本平台至少需要 {image_count} 张。")
     return {"sources": sources, "images": images, "warnings": warnings, "material_mode": "local", "source_notice": LOCAL_NOTICE}
+
+
+def product_candidates() -> list[dict]:
+    """List locally indexed models with their one-line positioning for A1.5."""
+    root = LOCAL_DIRECTORY / "P1-产品参数库"
+    result = []
+    for path in root.glob("*/*/卖点与限制.md"):
+        product = path.parent.name
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+            section = text.split("## 一句话定位", 1)[1]
+            summary = next(line.strip() for line in section.splitlines() if line.strip())
+        except (IndexError, StopIteration, OSError):
+            summary = ""
+        result.append({
+            "product": product,
+            "summary": summary,
+            "source_path": path.relative_to(ROOT).as_posix(),
+        })
+    return sorted(result, key=lambda item: item["product"])

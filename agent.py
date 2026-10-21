@@ -16,9 +16,12 @@ from image_assets import delivery_issues, usable_images
 
 def validate_task(task: dict) -> dict:
     clean = normalize_task(task)
-    for key, label in (("product", "具体产品型号"), ("audience", "目标人群"), ("scenario", "使用场景"), ("platform", "发布平台")):
+    for key, label in (("audience", "目标人群"), ("scenario", "使用场景"), ("platform", "发布平台")):
         if not clean[key]:
             raise ValueError("请先补充" + label + "。")
+    clean["word_count"] = clean["word_count"] or "按平台常规"
+    clean["image_count"] = clean["image_count"] or "按平台规则"
+    clean["price_range"] = clean["price_range"] or "待确认"
     if clean["platform"] not in PLATFORMS:
         raise ValueError("请先选择支持的发布平台。")
     if broad_scenario(clean["scenario"]):
@@ -28,9 +31,12 @@ def validate_task(task: dict) -> dict:
 
 def strategy_for(task: dict) -> dict:
     rules = PLATFORMS[task["platform"]]
+    budget = task.get("price_range") or "待确认"
+    target_length = task.get("word_count") or "按平台常规"
+    target_images = task.get("image_count") or "按平台规则"
     return {
         **deepcopy(rules),
-        "focus": f"围绕你描述的场景：{task['scenario']}\n面向：{task['audience']}。具体问题、卖点和表达顺序待需求理解模型结合资料判断。",
+        "focus": f"围绕你描述的场景：{task['scenario']}\n面向：{task['audience']}。大致字数：{target_length}；配图数量：{target_images}；可接受价格区间：{budget}。具体问题、卖点和表达顺序待需求理解模型结合资料判断。",
         "goal": task["goal"] or "未指定，按平台常规结构组织，不增加未经确认的承诺",
     }
 
@@ -51,6 +57,12 @@ def prepare_materials(task: dict, *, mode: str = "ima") -> dict:
         issues = runtime_issues()
         if issues:
             raise ValueError(" ".join(issues))
+        if not task["product"]:
+            from local_materials import product_candidates
+            candidates = product_candidates()
+            if not candidates:
+                raise KnowledgeError("本地选型目录不可用，请检查项目资料目录后重试。")
+            task["product"] = llm.select_product(task, candidates)
         strategy = strategy_for(task)
         if mode == "local":
             from local_materials import collect_local_sources
@@ -68,7 +80,8 @@ def prepare_materials(task: dict, *, mode: str = "ima") -> dict:
                 {"name": "营销合规", "state": "pending", "detail": "尚未生成文案，未执行完整合规核验。"},
             ],
         }
-        message = "当前为本地资料测试，未调用 ima 知识库。已读取本地文件，文案与核验待完成。" if mode == "local" else "已读取真实资料，文案与核验待完成。"
+        selected_note = "系统已根据场景与预算从知识库索引中选择型号：" + task["product"] + "。"
+        message = selected_note + ("当前为本地资料测试，未调用 ima 知识库。已读取本地文件，文案与核验待完成。" if mode == "local" else "已读取真实资料，文案与核验待完成。")
         envelope.update(status="ok", message=message, data=data)
     except (ValueError, KnowledgeError, OSError) as error:
         message = str(error) if not isinstance(error, OSError) else "本地资料读取失败，请检查项目目录权限。"
@@ -299,7 +312,7 @@ def export_markdown(result: dict, *, image_links: dict | None = None) -> str:
     if data.get("material_mode") == "local":
         notice = "当前为本地资料测试，未调用 ima 知识库。" + notice
     lines = ["# 华为 PC 营销任务记录", "", "> " + notice, "", "## 一、场景判断", ""]
-    for label, key in (("产品", "product"), ("目标人群", "audience"), ("场景", "scenario"), ("平台", "platform"), ("内容目标", "goal"), ("补充要求", "extra")):
+    for label, key in (("产品", "product"), ("目标人群", "audience"), ("场景", "scenario"), ("平台", "platform"), ("大致字数", "word_count"), ("配图数量", "image_count"), ("价格区间", "price_range"), ("内容目标", "goal"), ("补充要求", "extra")):
         lines.append(f"- {label}：{task.get(key) or '未补充'}")
     source_names = "、".join(dict.fromkeys(source["knowledge_base"] for source in data["sources"]))
     lines += ["", strategy["focus"], "", "内容结构：" + strategy["structure"], "", "## 二、知识库依据", "", "来源：" + source_names, ""]

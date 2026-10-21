@@ -3,11 +3,28 @@
 from copy import deepcopy
 import re
 
-FIELDS = ("product", "audience", "scenario", "platform", "goal", "extra")
-REQUIRED = FIELDS[:4]
-LABELS = {"product": "具体产品型号", "audience": "目标人群", "scenario": "使用场景", "platform": "发布平台", "goal": "内容目标（选填）", "extra": "补充要求（选填）"}
+FIELDS = ("product", "audience", "scenario", "platform", "word_count", "image_count", "price_range", "goal", "extra")
+REQUIRED = FIELDS[1:7]
+LABELS = {
+    "product": "产品型号（可选）",
+    "audience": "目标人群",
+    "scenario": "使用场景",
+    "platform": "发布平台",
+    "word_count": "大致字数",
+    "image_count": "配图数量",
+    "price_range": "可接受价格区间",
+    "goal": "内容目标（选填）",
+    "extra": "补充要求（选填）",
+}
 SCENARIO_QUESTION = "具体要用电脑完成什么任务、使用哪些软件？例如学习是查文献写论文、编程作业，还是剪辑课程视频？请补充实际任务，以及会影响性能判断的情况（如多开文件、视频清晰度或项目规模）；不知道软件名可以直接描述操作。"
-QUESTIONS = {"product": "请提供具体产品型号；不会代猜型号或补全数字。", "audience": "主要面向哪类顾客？", "scenario": SCENARIO_QUESTION, "platform": "发布在公众号、小红书、门店朋友圈，还是门店海报？"}
+QUESTIONS = {
+    "audience": "主要面向哪类顾客？",
+    "scenario": SCENARIO_QUESTION,
+    "platform": "发布在公众号、小红书、门店朋友圈，还是门店海报？",
+    "word_count": "这篇推文大致需要多少字？（例如：300字、500–800字）",
+    "image_count": "大概需要几张配图？（例如：2张、3–4张；最终仍需符合平台规则）",
+    "price_range": "顾客可接受的价格区间大概是多少？（不知道可先写“待确认”）",
+}
 
 
 def broad_scenario(value: str) -> bool:
@@ -31,7 +48,7 @@ def normalize_task(task: dict) -> dict:
         if not isinstance(value, str):
             raise ValueError(LABELS[field] + "应填写文字。")
         clean[field] = value.strip()
-        if len(clean[field]) > (120 if field == "product" else 3000):
+        if len(clean[field]) > (120 if field in ("product", "image_count") else 3000):
             raise ValueError(LABELS[field] + "过长，请精简后再提交。")
     return clean
 
@@ -46,7 +63,7 @@ def validate_analysis(analysis: dict, platforms: dict) -> dict:
         if not isinstance(item, dict) or item.get("state") not in ("clear", "missing", "ambiguous") or not isinstance(item.get("value"), str):
             raise ValueError("模型需求清单格式异常，请重试。")
         task[field] = item["value"].strip()
-        if item["state"] == "clear" and not task[field]:
+        if item["state"] == "clear" and not task[field] and field != "product":
             raise ValueError("模型将空信息标记为明确，请重试。")
         if field in REQUIRED and re.sub(r"[\s，。！？,.!?]", "", task[field]) in ("随便", "都行", "都可以", "无所谓", "不知道", "不清楚", "待定", "未定", "未提供"):
             checklist[field]["state"] = "ambiguous"
@@ -87,6 +104,8 @@ def confirmation_text(task: dict) -> str:
     for field in FIELDS:
         if task[field]:
             lines += [f"**{LABELS[field]}**：{task[field]}"]
+    if not task["product"]:
+        lines.append("**产品型号**：待资料检索 Agent 根据场景与预算从知识库中选择。")
     if not task["goal"]:
         lines.append("内容目标未指定，将按平台常规结构组织，不补写价格、优惠或服务承诺。")
     lines.append("请确认上述理解是否准确；也可以直接提出修改。确认后再查资料。")

@@ -119,7 +119,7 @@ with left:
     with st.container(height=450, border=True):
         if not st.session_state.history:
             with st.chat_message("assistant"):
-                st.write("这次要介绍哪款华为 PC？你也可以直接说完整的内容需求。")
+                st.write("你可以只描述顾客人群、使用场景和发布要求；如果没有具体型号，系统会先从知识库帮你选。")
         for message in st.session_state.history:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
@@ -165,6 +165,12 @@ with right:
             st.write(visible_draft["angle"] if visible_draft else strategy["focus"])
             st.write("**内容目标**")
             st.write(task["goal"] or "未提供")
+            st.write("**大致字数**")
+            st.write(task.get("word_count") or "未提供")
+            st.write("**配图数量**")
+            st.write(task.get("image_count") or "未提供")
+            st.write("**价格区间**")
+            st.write(task.get("price_range") or "未提供")
             st.write("**平台结构**")
             st.write(strategy["structure"])
             st.caption(strategy["tone"])

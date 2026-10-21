@@ -11,10 +11,12 @@ from requirements_review import REQUIRED, confirmation_text, next_state
 
 
 QUESTIONS = {
-    "product": "这次要介绍哪款华为 PC？",
     "audience": "这篇内容主要写给哪一类人？",
     "scenario": "他们具体会在什么情况下使用电脑？",
     "platform": "要发在公众号、小红书、门店朋友圈，还是门店海报？",
+    "word_count": "大致需要多少字？",
+    "image_count": "大概需要几张配图？",
+    "price_range": "可接受的价格区间是多少？",
     "goal": "希望读者看完后做什么？",
 }
 

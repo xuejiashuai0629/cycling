@@ -9,7 +9,7 @@ import llm
 import tools
 from tests.fixtures import test_image_path
 
-TASK = {"product": "MateBook GT 14", "audience": "内容创作者", "scenario": "用剪映整理并剪辑社团活动的1080p短视频", "platform": "门店朋友圈", "goal": "", "extra": ""}
+TASK = {"product": "MateBook GT 14", "audience": "内容创作者", "scenario": "用剪映整理并剪辑社团活动的1080p短视频", "platform": "门店朋友圈", "word_count": "约 120 字", "image_count": "1 张", "price_range": "4000–6000 元", "goal": "", "extra": ""}
 
 
 class AgentTests(unittest.TestCase):
@@ -43,7 +43,7 @@ class AgentTests(unittest.TestCase):
         with patch("agent.collect_sources") as collect:
             result = agent.prepare_materials({})
         self.assertEqual(result["status"], "error")
-        self.assertEqual(result["message"], "请先补充具体产品型号。")
+        self.assertEqual(result["message"], "请先补充目标人群。")
         collect.assert_not_called()
 
     def test_platform_and_scenario_change_strategy(self):
