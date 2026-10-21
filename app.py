@@ -54,7 +54,7 @@ def queue_action(action: str) -> None:
         text = st.session_state.get("user_message", "").strip()
         if not text:
             return
-    elif action == "materials":
+    elif action in ("materials", "article"):
         if not dialog or dialog["stage"] != "ready_for_confirmation":
             return
     elif action in ("generate", "continue_generation"):
@@ -67,6 +67,16 @@ def queue_action(action: str) -> None:
     }
     st.session_state.busy = True
     st.session_state.error_message = ""
+
+
+def generate_to_completion(result: dict) -> dict:
+    """Finish the initial write/review job without bouncing through reruns."""
+    response = agent.generate_content(result)
+    for _ in range(8):
+        if response.get("status") != "ok" or response.get("data", {}).get("stage") not in ("rewriting", "review_retry"):
+            break
+        response = agent.generate_content(response, resume=True)
+    return response
 
 
 with st.sidebar:
@@ -127,11 +137,14 @@ with left:
     st.chat_input("在这里回答，或补充、修改你的要求", key="user_message", max_chars=6000, disabled=st.session_state.busy, on_submit=queue_action, args=("chat",))
     if dialog:
         if dialog["stage"] == "ready_for_confirmation":
-            st.button("确认需求，查找资料与图片", type="primary", disabled=st.session_state.busy, on_click=queue_action, args=("materials",), width="stretch")
+            st.button("生成文章", type="primary", disabled=st.session_state.busy, on_click=queue_action, args=("article",), width="stretch")
         else:
             st.caption("尚有必需信息待明确，补齐并确认后才能创作；不会自动用假设补全。")
         with st.expander("当前理解的需求清单"):
             states = {"clear": "已明确", "missing": "缺失", "ambiguous": "模糊"}
+            product = dialog["requirements"]["product"]
+            st.write(f"**{LABELS['product']} · {states[product['state']]}**")
+            st.caption(product["value"] or "可以不填；系统会从知识库候选中选择。")
             for field in REQUIRED:
                 item = dialog["requirements"][field]
                 st.write(f"**{LABELS[field]} · {states[item['state']]}**")
@@ -238,7 +251,7 @@ with right:
                     st.warning("需要先补充或确认资料，原因如下：")
                     for reason in agent.failure_reasons(data):
                         st.write("- " + reason)
-                    st.caption("处理后点击左侧“确认需求，查找资料与图片”重新读取，再继续生成。")
+                    st.caption("处理后点击左侧“生成文章”重新读取，再继续生成。")
                 else:
                     st.info("素材准备后，可以调用写作角色生成草稿，再交给审核角色检查。")
             running_generation = data.get("stage") in ("rewriting", "review_retry") or (st.session_state.busy and st.session_state.get("pending_action", {}).get("action") in ("generate", "continue_generation"))
@@ -265,16 +278,25 @@ if st.session_state.busy and "pending_action" in st.session_state:
     continue_automatically = False
     try:
         action = pending["action"]
-        with st.spinner({"chat": "正在理解你的需求…", "materials": "正在查找资料与图片…", "generate": "正在写作文案并独立审核…", "continue_generation": "正在按问题清单修改并重新审核…", "connection": "正在验证知识库连接…"}[action]):
+        with st.spinner({"chat": "正在理解你的需求…", "materials": "正在查找资料与图片…", "article": "正在选型、查资料、写作与审核…", "generate": "正在写作文案并独立审核…", "continue_generation": "正在按问题清单修改并重新审核…", "connection": "正在验证知识库连接…"}[action]):
             if action == "connection":
                 response = diagnostics.check_ima_connection()
             elif action == "chat":
                 response = agent.chat(pending["text"], pending["history"], state=pending["dialog"])
+            elif action == "article":
+                if pending["mode"] == "本地资料测试":
+                    response = agent.prepare_materials(pending["dialog"]["task"], mode="local")
+                else:
+                    response = agent.prepare_materials(pending["dialog"]["task"])
+                if response.get("status") == "ok":
+                    response = generate_to_completion(response)
             elif action == "materials":
                 if pending["mode"] == "本地资料测试":
                     response = agent.prepare_materials(pending["dialog"]["task"], mode="local")
                 else:
                     response = agent.prepare_materials(pending["dialog"]["task"])
+                if response.get("status") == "ok":
+                    response = generate_to_completion(response)
             else:
                 response = agent.generate_content(pending["result"], resume=action == "continue_generation")
         if action == "connection":
@@ -286,8 +308,9 @@ if st.session_state.busy and "pending_action" in st.session_state:
                 st.session_state.history.append({"role": "user", "content": pending["text"]})
             else:
                 st.session_state.result = response
-                if action == "materials":
-                    st.session_state.confirmed_task = deepcopy(pending["dialog"]["task"])
+                if action in ("materials", "article"):
+                    if response.get("status") == "ok" or response.get("data", {}).get("sources"):
+                        st.session_state.confirmed_task = deepcopy(pending["dialog"]["task"])
                 elif response["data"].get("stage") in ("rewriting", "review_retry"):
                     continue_automatically = True
             if not continue_automatically:
