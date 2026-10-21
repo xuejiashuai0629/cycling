@@ -9,7 +9,7 @@ import re
 ROOT = Path(__file__).resolve().parent
 OUTPUTS = ROOT / "outputs"
 KNOWLEDGE_BASE = "任德耀新建华为PC知识库"
-PYTHON_VERSION = (3, 15, 0)
+PYTHON_VERSION = (3, 14, 6)
 STREAMLIT_VERSION = "1.66.0"
 API_TIMEOUT = 20
 DOWNLOAD_TIMEOUT = 15
@@ -65,7 +65,7 @@ def ima_environment() -> dict[str, str]:
 def runtime_issues() -> list[str]:
     issues = []
     if sys.version_info[:3] != PYTHON_VERSION:
-        issues.append("本项目约定 Python 3.15.0，当前为 " + ".".join(map(str, sys.version_info[:3])) + "。请切换解释器，勿自动改版本。")
+        issues.append("本项目约定 Python " + ".".join(map(str, PYTHON_VERSION)) + "，当前为 " + ".".join(map(str, sys.version_info[:3])) + "。请切换解释器，勿自动改版本。")
     if not shutil.which("node"):
         issues.append("找不到 Node.js；它负责运行官方 ima 读取脚本。")
     if not (ROOT / "ima-skill" / "ima_api.cjs").is_file():
