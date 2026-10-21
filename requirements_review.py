@@ -29,6 +29,21 @@ QUESTIONS = {
 }
 
 
+def declined_answer(value: str) -> bool:
+    """User says “没有 / 不知道 / 不限 / 待确认” instead of giving data."""
+    return bool(re.search(r"没有|没有明确|无|不知道|不清楚|不确定|没想好|待确认|未定|不限|无所谓|随便|都可以", value))
+
+
+def has_usable_task_language(value: str) -> bool:
+    """A concrete workload/domain is enough even if software names are unknown."""
+    return bool(re.search(
+        r"建模|渲染|仿真|编程|写代码|剪辑|视频|绘图|设计|论文|查文献|数据处理|报表|办公|会议|"
+        r"机械|自动化|CAD|SolidWorks|UG|CATIA|MATLAB|Revit|Blender|3D|渲染|仿真|测试|开发",
+        value,
+        re.I,
+    ))
+
+
 def broad_scenario(value: str) -> bool:
     """Catch generic labels even when a model incorrectly marks them clear.
 
@@ -69,6 +84,13 @@ def validate_analysis(analysis: dict, platforms: dict) -> dict:
             raise ValueError("模型将空信息标记为明确，请重试。")
         if field in REQUIRED and re.sub(r"[\s，。！？,.!?]", "", task[field]) in ("随便", "都行", "都可以", "无所谓", "不知道", "不清楚", "待定", "未定", "未提供"):
             checklist[field]["state"] = "ambiguous"
+        if field == "price_range" and declined_answer(task[field]):
+            checklist[field]["state"] = "clear"
+            task[field] = "未明确价格区间"
+        if field == "scenario" and declined_answer(task[field]) and has_usable_task_language(task[field]):
+            checklist[field]["state"] = "clear"
+            if "软件名待确认" not in task[field]:
+                task[field] += "（具体软件名待确认）"
     task["extra"] = analysis.get("extra", "")
     task = normalize_task(task)
     if checklist["platform"]["state"] == "clear" and task["platform"] not in platforms:

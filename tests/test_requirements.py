@@ -94,6 +94,19 @@ class RequirementsTests(unittest.TestCase):
         self.assertEqual(result["question_fields"], ["platform"])
         self.assertEqual(result["requirements"]["platform"]["state"], "ambiguous")
 
+    def test_user_can_decline_software_names_and_budget_without_endless_asking(self):
+        value = analysis()
+        value["requirements"]["scenario"] = {
+            "state": "clear",
+            "value": "学机械自动化的大学生，频繁使用建模软件，我不知道有什么建模软件，你能不能自己查",
+        }
+        value["requirements"]["price_range"] = {"state": "clear", "value": "没有，不用管预算"}
+        result = next_state(value, None, PLATFORMS)
+        self.assertEqual(result["stage"], "ready_for_confirmation")
+        self.assertIn("建模", result["task"]["scenario"])
+        self.assertIn("软件名待确认", result["task"]["scenario"])
+        self.assertEqual(result["task"]["price_range"], "未明确价格区间")
+
     def test_bad_checklists_and_types_are_rejected(self):
         values = [None, {}, analysis(requirements={}), analysis(extra=["wrong"])]
         empty_clear = analysis()
