@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华为 PC 营销创作台 · 作品入口</title>
+<style>
+  body {font-family: "Microsoft YaHei", "PingFang SC", sans-serif; max-width: 760px; margin: 0 auto; padding: 40px 24px; color: #22252b; line-height: 1.7; background: #f7f7f4;}
+  h1 {font-size: 28px; margin-bottom: 2px;}
+  .sub {color: #777e77; margin-top: 0;}
+  .card {background: #fff; border: 1px solid #e1e2dc; border-radius: 12px; padding: 20px 22px; margin: 16px 0;}
+  .btn {display: inline-block; background: #c7000b; color: #fff; text-decoration: none; padding: 12px 22px; border-radius: 8px; font-weight: 600;}
+  .btn.secondary {background: #22252b;}
+  .btn.ghost {background: #eeefeb; color: #22252b;}
+  a {color: #c7000b;}
+  .notice {background: #fff6e9; border-left: 4px solid #ba761c; padding: 14px 18px;}
+  ul {margin-top: 8px;}
+</style>
+</head>
+<body>
+
+<h1>华为 PC 营销创作台</h1>
+<p class="sub">浙客松 · 华为产业进阶赛道 · 项目作品入口</p>
+
+<div class="card">
+  <b>想快速看作品？</b><br>
+  先打开下面的展示页，里面有项目介绍、真实运行截图和完整交付说明。
+  <div style="margin-top:14px;"><a class="btn" href="魔搭展示页.html">打开项目展示页</a></div>
+</div>
+
+<div class="card">
+  <b>项目交付材料</b>
+  <ul>
+    <li><a href="作品说明书.pdf">作品说明书 PDF</a></li>
+    <li><a href="作品说明书.md">作品说明书 Markdown</a></li>
+    <li><a href="验证记录.md">验证记录</a></li>
+    <li><a href="测试清单.md">测试清单</a></li>
+    <li><a href="README.md">项目 README</a></li>
+  </ul>
+</div>
+
+<div class="card">
+  <b>交互式创作台怎么打开？</b><br>
+  这个作品本身是一个 Streamlit 应用，双击项目根目录里的 <b>启动.cmd</b> 即可启动。  
+  启动成功后会访问 <b>http://127.0.0.1:8501</b>。
+  <p class="notice">说明：当前机器上还没有配齐 <b>Python 3.15.0</b> 和 <b>Streamlit 1.66.0</b>，所以现在双击 <b>启动.cmd</b> 可能会提示环境不完整。可以先看上面的展示页和说明书；等你需要跑交互界面时，我可以再帮你补环境。</p>
+</div>
+
+<div class="card">
+  <b>项目结构速览</b>
+  <ul>
+    <li><b>魔搭展示页.html</b> —— 项目展示与真实截图</li>
+    <li><b>作品说明书.md / .pdf</b> —— 交付说明</li>
+    <li><b>app.py / agent.py</b> —— 交互界面与核心逻辑</li>
+    <li><b>ima-skill/</b> —— 官方 ima 工具包</li>
+    <li><b>tests/</b> —— 离线测试</li>
+  </ul>
+</div>
+
+</body>
+</html>
