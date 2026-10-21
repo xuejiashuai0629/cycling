@@ -5,6 +5,7 @@ from unittest.mock import patch
 import agent
 from config import PLATFORMS
 from requirements_review import next_state, normalize_task
+from product_identity import different_model, matches_product
 from tests.fixtures import TASK, analysis, unclear
 
 
@@ -106,6 +107,11 @@ class RequirementsTests(unittest.TestCase):
         self.assertIn("建模", result["task"]["scenario"])
         self.assertIn("软件名待确认", result["task"]["scenario"])
         self.assertEqual(result["task"]["price_range"], "未明确价格区间")
+
+    def test_series_product_accepts_concrete_sku_inside_same_family(self):
+        self.assertTrue(matches_product("MateBook GT 系列", "hwpc_matebook-gt-14_高质感主视觉_01.png"))
+        self.assertFalse(different_model("MateBook GT 系列", "hwpc_matebook-gt-14_高质感主视觉_01.png"))
+        self.assertFalse(matches_product("MateBook GT 系列", "MateBook D 14"))
 
     def test_bad_checklists_and_types_are_rejected(self):
         values = [None, {}, analysis(requirements={}), analysis(extra=["wrong"])]
