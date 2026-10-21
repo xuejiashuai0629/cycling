@@ -9,7 +9,7 @@ import llm
 import tools
 from tests.fixtures import test_image_path
 
-TASK = {"product": "MateBook GT 14", "audience": "内容创作者", "scenario": "用剪映整理并剪辑社团活动的1080p短视频", "platform": "门店朋友圈", "word_count": "约 120 字", "image_count": "1 张", "price_range": "4000–6000 元", "goal": "", "extra": ""}
+TASK = {"product": "MateBook GT 14", "audience": "内容创作者", "scenario": "用剪映整理并剪辑社团活动的1080p短视频", "platform": "门店朋友圈", "word_count": "按平台常规", "image_count": "1 张", "price_range": "4000–6000 元", "tone": "专业导购", "goal": "", "extra": ""}
 
 
 class AgentTests(unittest.TestCase):

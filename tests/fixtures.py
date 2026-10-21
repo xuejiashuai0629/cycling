@@ -25,8 +25,9 @@ def test_image_path(index=1):
 TASK = {
     "product": "MateBook GT 14", "audience": "乡村支教老师",
     "scenario": "平日在学校整理课件，周末到镇上同步资料",
-    "platform": "门店朋友圈", "word_count": "约 120 字",
+    "platform": "门店朋友圈", "word_count": "按平台常规",
     "image_count": "1 张", "price_range": "4000–6000 元",
+    "tone": "专业导购",
     "goal": "邀请咨询适合备课的配置", "extra": "不写价格",
 }
 

@@ -184,6 +184,8 @@ with right:
             st.write(task.get("image_count") or "未提供")
             st.write("**价格区间**")
             st.write(task.get("price_range") or "未提供")
+            st.write("**语气偏好**")
+            st.write(task.get("tone") or "未提供")
             st.write("**平台结构**")
             st.write(strategy["structure"])
             st.caption(strategy["tone"])

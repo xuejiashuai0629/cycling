@@ -3,8 +3,8 @@
 from copy import deepcopy
 import re
 
-FIELDS = ("product", "audience", "scenario", "platform", "word_count", "image_count", "price_range", "goal", "extra")
-REQUIRED = FIELDS[1:7]
+FIELDS = ("product", "audience", "scenario", "platform", "word_count", "image_count", "price_range", "tone", "goal", "extra")
+REQUIRED = FIELDS[1:8]
 LABELS = {
     "product": "产品型号（可选）",
     "audience": "目标人群",
@@ -13,6 +13,7 @@ LABELS = {
     "word_count": "大致字数",
     "image_count": "配图数量",
     "price_range": "可接受价格区间",
+    "tone": "语气偏好",
     "goal": "内容目标（选填）",
     "extra": "补充要求（选填）",
 }
@@ -24,6 +25,7 @@ QUESTIONS = {
     "word_count": "这篇推文大致需要多少字？（例如：300字、500–800字）",
     "image_count": "大概需要几张配图？（例如：2张、3–4张；最终仍需符合平台规则）",
     "price_range": "顾客可接受的价格区间大概是多少？（不知道可先写“待确认”）",
+    "tone": "语气偏专业导购、生活化种草，还是两者平衡？",
 }
 
 
@@ -48,7 +50,7 @@ def normalize_task(task: dict) -> dict:
         if not isinstance(value, str):
             raise ValueError(LABELS[field] + "应填写文字。")
         clean[field] = value.strip()
-        if len(clean[field]) > (120 if field in ("product", "image_count") else 3000):
+        if len(clean[field]) > (120 if field in ("product", "image_count", "tone") else 3000):
             raise ValueError(LABELS[field] + "过长，请精简后再提交。")
     return clean
 

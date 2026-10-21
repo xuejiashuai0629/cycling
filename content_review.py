@@ -8,6 +8,16 @@ from safety_review import draft_issues
 CHECKS = ("产品事实", "图片型号", "平台图数", "平台格式", "场景匹配", "营销合规")
 
 
+def word_count_limits(value: str | None) -> dict:
+    """Turn a request like “500–800字” into a hard delivery window."""
+    numbers = [int(item) for item in re.findall(r"\d+", value or "")]
+    if not numbers:
+        return {"minimum": None, "maximum": None, "detail": value or "未指定"}
+    minimum = numbers[0]
+    maximum = numbers[1] if len(numbers) > 1 else round(minimum * 1.25)
+    return {"minimum": minimum, "maximum": maximum, "detail": value or ""}
+
+
 def writing_contract(data: dict) -> dict:
     """Give the writer the selected platform's concrete requirements up front."""
     platform = data["task"]["platform"]
@@ -18,9 +28,12 @@ def writing_contract(data: dict) -> dict:
         "门店海报": {"outline": ["主标题放title", "副标题放intro", "1–3行- 卖点放body", "一句行动引导放cta"], "minimum_paragraphs": 1, "selling_points": "1–3项，逐字对应body中的项目符号", "tags": "空数组"},
     }
     minimum, maximum = data["strategy"]["images"]
+    words = word_count_limits(data["task"].get("word_count"))
     return {
         "platform": platform, **rules[platform],
+        "tone": data["task"].get("tone") or "专业导购",
         "image_count": {"minimum": minimum, "maximum": maximum},
+        "word_count": words,
         "allowed_image_ids": [item["source_id"] for item in data["images"]],
         "image_positions": "image_plan.position使用第1段后、第2段后等明确位置；只数正文文字段落，图片标记不算段落。程序按此插入图片，不得使用待定位置。也可在body直接写对应的【配图 I编号】。",
         "fact_mapping": "selling_points只列正文中的产品事实原句，不混入建议；每项逐字包含在某条claims.text内，quote逐字摘自对应原文。所有数值和限定条件都必须有据。",
@@ -101,6 +114,8 @@ def platform_format_issues(draft: dict, data: dict) -> list[str]:
     if not draft["cta"].strip():
         issues.append("缺少适合本平台的行动引导。")
     body = re.sub(r"【配图\s*I\d+\s*】", "", draft["body"]).strip()
+    words = word_count_limits(data["task"].get("word_count"))
+    length = len(re.sub(r"\s", "", body))
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", body) if part.strip()]
     if platform in ("公众号", "小红书") and len(paragraphs) < 2:
         issues.append("本平台正文需分段，至少包含两个非空段落。")
@@ -116,6 +131,10 @@ def platform_format_issues(draft: dict, data: dict) -> list[str]:
         if point not in draft["body"]:
             issues.append("卖点清单必须与实际正文中的卖点一致。")
             break
+    if words["minimum"] and length < words["minimum"]:
+        issues.append(f"正文约{length}字，低于本次要求的不少于{words['minimum']}字。")
+    if words["maximum"] and length > round(words["maximum"] * 1.2):
+        issues.append(f"正文约{length}字，明显超过本次要求的{words['maximum']}字左右。")
     markers = re.findall(r"【配图\s*(I\d+)\s*】", draft["body"])
     planned = [picture["source_id"] for picture in draft["image_plan"]]
     if sorted(markers) != sorted(planned):

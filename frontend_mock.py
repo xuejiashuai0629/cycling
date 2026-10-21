@@ -17,6 +17,7 @@ QUESTIONS = {
     "word_count": "大致需要多少字？",
     "image_count": "大概需要几张配图？",
     "price_range": "可接受的价格区间是多少？",
+    "tone": "语气偏专业导购、生活化种草，还是两者平衡？",
     "goal": "希望读者看完后做什么？",
 }
 
@@ -26,9 +27,9 @@ def chat(user_text: str, history: list, *, state: dict | None = None) -> dict:
     if not user_text.strip():
         return {"status": "error", "message": "【联调模拟】请填写本次回答。"}
     requirements = deepcopy(state["requirements"]) if state else {field: {"state": "missing", "value": ""} for field in (*REQUIRED, "goal")}
-    labels = {"产品": "product", "受众": "audience", "场景": "scenario", "平台": "platform", "目标": "goal"}
+    labels = {"产品": "product", "受众": "audience", "场景": "scenario", "平台": "platform", "字数": "word_count", "配图": "image_count", "预算": "price_range", "语气": "tone", "目标": "goal"}
     for part in re.split(r"[；;\n]", user_text):
-        match = re.match(r"\s*(产品|受众|场景|平台|目标)\s*[:：]\s*(.+)", part)
+        match = re.match(r"\s*(产品|受众|场景|平台|字数|配图|预算|语气|目标)\s*[:：]\s*(.+)", part)
         if match:
             field, value = labels[match[1]], match[2].strip()
             if field == "platform":

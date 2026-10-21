@@ -39,7 +39,7 @@ class RequirementsTests(unittest.TestCase):
         local.assert_not_called()
 
     def test_non_answers_cannot_be_marked_clear_by_model(self):
-        for field in ("audience", "scenario", "platform", "word_count", "image_count", "price_range"):
+        for field in ("audience", "scenario", "platform", "word_count", "image_count", "price_range", "tone"):
             value = analysis()
             value["requirements"][field] = {"state": "clear", "value": "都行"}
             result = next_state(value, None, PLATFORMS)
