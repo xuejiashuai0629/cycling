@@ -125,6 +125,28 @@ def pause_generation(result: dict) -> dict:
     return result
 
 
+def prepare_failed_preview(result: dict) -> dict:
+    """Keep the last generated draft visible after retry budget is exhausted."""
+    result = deepcopy(result)
+    data = result.get("data", {})
+    job = data.get("_rewrite")
+    draft = None
+    if isinstance(job, dict):
+        draft = job.get("last_draft") or job.get("candidate") or job.get("previous_draft")
+    if not isinstance(draft, dict):
+        draft = data.get("draft")
+    if not isinstance(draft, dict) or not all(isinstance(draft.get(key), str) and draft.get(key, "").strip() for key in ("title", "intro", "body", "cta")) or not isinstance(draft.get("image_plan"), list):
+        return {**result, "status": "error", "message": "已暂停自动重写；最后一轮没有可展示的完整草稿。"}
+    data["draft"] = draft
+    data["stage"] = "failed_preview"
+    data["draft_preview"] = True
+    reasons = failure_reasons(data)
+    message = "已展示第3次生成的草稿，仅供诊断与修改参考，不是通过审核的可发布稿。未通过项见核验结果。"
+    if reasons:
+        message += "具体问题：" + "；".join(reasons[:3])
+    return {**result, "status": "ok", "message": message}
+
+
 def _await_images(result: dict, details: list[str]) -> dict:
     data = result["data"]
     detail = "；".join(details)
@@ -177,7 +199,7 @@ def _generate_content(prepared: dict, *, resume: bool = False) -> dict:
                 data["verification"] = [{"name": "输出结构与证据引用", "state": "fail", "detail": detail}]
                 data["review_issues"] = [detail]
                 data["review_history"].append({"rewrite_count": attempt, "decision": "revise", "checks": deepcopy(data["verification"]), "issues": [detail]})
-                job.update(attempt=attempt + 1, previous_draft=raw if isinstance(raw, dict) else None, feedback=[detail], phase="write")
+                job.update(attempt=attempt + 1, previous_draft=raw if isinstance(raw, dict) else None, last_draft=raw if isinstance(raw, dict) else None, feedback=[detail], phase="write")
                 data["stage"] = "rewriting"
                 return {**result, "status": "ok", "message": f"第{attempt + 1}轮输出校验未通过，正带着具体问题自动重写。"}
             job.update(candidate=draft, phase="review")
@@ -217,7 +239,7 @@ def _generate_content(prepared: dict, *, resume: bool = False) -> dict:
             data.pop("_rewrite", None)
             return {**result, "status": "error", "message": blocked_message(data)}
         if feedback:
-            job.update(attempt=attempt + 1, previous_draft=draft, feedback=feedback, candidate=None, phase="write")
+            job.update(attempt=attempt + 1, previous_draft=draft, last_draft=draft, feedback=feedback, candidate=None, phase="write")
             data["stage"] = "rewriting"
             return {**result, "status": "ok", "message": f"第{attempt + 1}轮审核发现可修改问题，正在自动重写并复核。"}
         image_issues = delivery_issues(data, draft)

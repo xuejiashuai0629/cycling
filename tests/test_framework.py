@@ -7,7 +7,7 @@ import agent
 import frontend_mock
 import llm
 import tools
-from tests.fixtures import test_image_path
+from tests.fixtures import DRAFT, test_image_path
 
 TASK = {"product": "MateBook GT 14", "audience": "内容创作者", "scenario": "用剪映整理并剪辑社团活动的1080p短视频", "platform": "门店朋友圈", "word_count": "按平台常规", "image_count": "1 张", "price_range": "4000–6000 元", "tone": "专业导购", "goal": "", "extra": ""}
 
@@ -71,6 +71,16 @@ class AgentTests(unittest.TestCase):
         self.assertIn("尚未配置 DeepSeek", generated["message"])
         self.assertEqual(prepared, original)
         self.assertIsNone(generated["data"]["draft"])
+
+    def test_failed_preview_keeps_last_draft_for_user(self):
+        source = frontend_mock.prepare_materials(TASK)
+        source["data"].update(stage="rewriting", verification=[{"name": "输出结构与证据引用", "state": "fail", "detail": "测试失败"}])
+        source["data"]["_rewrite"] = {"task": TASK, "attempt": 3, "phase": "write", "previous_draft": None, "feedback": [], "candidate": None, "last_draft": DRAFT}
+        result = agent.prepare_failed_preview(source)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["data"]["stage"], "failed_preview")
+        self.assertEqual(result["data"]["draft"], DRAFT)
+        self.assertTrue(result["data"]["draft_preview"])
 
     def test_chat_does_not_modify_history(self):
         history = [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好！"}]

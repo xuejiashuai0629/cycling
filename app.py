@@ -76,8 +76,8 @@ def generate_to_completion(result: dict) -> dict:
         if response.get("status") != "ok" or response.get("data", {}).get("stage") not in ("rewriting", "review_retry"):
             break
         response = agent.generate_content(response, resume=True)
-    if response.get("status") == "ok" and response.get("data", {}).get("stage") in ("rewriting", "review_retry"):
-        response = {**response, "status": "error", "message": "已尝试 3 次仍未通过证据引用或审核校验，已暂停自动重写，避免继续消耗额度。你可以先调整需求，再点击继续写作与审核。"}
+    if response.get("data", {}).get("stage") in ("rewriting", "review_retry"):
+        response = agent.prepare_failed_preview(response)
     return response
 
 
@@ -165,7 +165,7 @@ with right:
     else:
         data = result["data"]
         image_problems = delivery_issues(data)
-        visible_draft = data.get("draft") if not image_problems else None
+        visible_draft = data.get("draft") if not image_problems or data.get("stage") == "failed_preview" else None
         task, strategy = data["task"], data["strategy"]
         st.caption(f"本份结果：{task['product']} · {task['platform']} · {task['audience']}")
         if data.get("material_mode") == "local":
@@ -215,6 +215,8 @@ with right:
             draft = visible_draft
             if draft:
                 st.warning("以下是待核验草稿，尚未完成全部审核。")
+                if data.get("stage") == "failed_preview":
+                    st.error("这是第3次生成的失败稿预览，仅供查看问题；不要直接发布。")
                 if data.get("stage") == "revision_required":
                     st.warning("审核指出待处理事项，请查看核验结果。")
                 st.subheader(draft["title"])
