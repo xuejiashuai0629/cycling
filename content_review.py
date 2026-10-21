@@ -25,7 +25,7 @@ def word_count_limits(value: str | None) -> dict:
     if not numbers:
         return {"minimum": None, "maximum": None, "detail": value or "未指定"}
     minimum = numbers[0]
-    maximum = numbers[1] if len(numbers) > 1 else round(minimum * 1.25)
+    maximum = numbers[1] if len(numbers) > 1 else round(minimum * 1.1)
     return {"minimum": minimum, "maximum": maximum, "detail": value or ""}
 
 

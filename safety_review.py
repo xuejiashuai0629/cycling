@@ -10,7 +10,11 @@ QUANTITY = re.compile(r"\d+(?:\.\d+)?\s*(?:kg|gb|tb|wh|mah|hz|nits?|g|w|k|英寸
 PROMOTION = re.compile(r"(?:直降|立减|满减|补贴|优惠价|折后价|到手价|券后价|售价|价格为|低至|仅售|现价|现货充足|库存充足|保证有货|随时有货|现货|有货)")
 ABSOLUTE = re.compile(r"(?:最好(?:的)?(?:轻薄本|电脑|笔记本|屏幕|性能|选择)|(?:市面上|行业|全网|全球|世界|同类|国产|销量|性能).{0,6}(?:最好|最强|第一)|无敌|遥遥领先|天花板|[第全]一(?:品牌|轻薄本)|100%保证|百分之百保证)")
 ATTACK = re.compile(r"(?:吊打|碾压|秒杀|完爆|垃圾|智商税)")
-EXPERIENCE = re.compile(r"(?:我|本人|亲身|亲测|实测|亲自).{0,20}(?:用了|使用了|用过|体验了|测了|测过|测试了|入手|上手|两周|半个月)|(?:亲测|实测|亲身体验|真实体验|真实感受)")
+EXPERIENCE = re.compile(
+    r"(?:我|本人|亲身|亲测|实测|亲自)(?:最近|刚|曾经|之前)?\s*"
+    r"(?:用|使用|测|测试|体验|上手|入手)"
+    r"|(?:亲测|实测|亲身体验|真实体验|真实感受)"
+)
 
 
 def norm(value: str) -> str:
@@ -81,7 +85,12 @@ def draft_issues(draft: dict, data: dict) -> dict[str, list[str]]:
         if not sentence:
             continue
         for quantity in quantities(sentence):
-            if not any(quantity in quantities(claim["text"]) and quantity in quantities(claim["quote"]) and norm(claim["text"]).rstrip("。.!！?？") in norm(sentence) for claim in claims):
+            if not any(
+                quantity in quantities(claim["text"])
+                and quantity in quantities(claim["quote"])
+                and claim["source_id"] in sources
+                for claim in claims
+            ):
                 issues["产品事实"].append("文案数值未逐句列入有效证据清单：" + quantity)
         if PROMOTION.search(sentence):
             supported = any(norm(sentence) in norm(claim["text"]) and PROMOTION.search(claim["quote"]) and quantities(sentence) <= quantities(claim["quote"]) and claim["source_id"] in sources for claim in claims)
