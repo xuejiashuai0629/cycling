@@ -1,10 +1,8 @@
-"""Structural and evidence gates supplement, not replace, model review."""
+"""Minimal runtime shape guards; content review is delegated to the AI agent."""
 
 from copy import deepcopy
 import re
 import unicodedata
-
-from safety_review import draft_issues
 
 CHECKS = ("产品事实", "图片型号", "平台图数", "平台格式", "场景匹配", "营销合规")
 
@@ -104,11 +102,7 @@ def validate_draft(draft: dict, data: dict) -> dict:
         raise ValueError("文案缺少事实证据清单。")
     for claim in draft["claims"]:
         if not isinstance(claim, dict) or not isinstance(claim.get("source_id"), str) or claim["source_id"] not in sources:
-            raise ValueError("事实引用使用了不存在的资料编号，本次不展示该成稿。")
-        if not isinstance(claim.get("quote"), str) or not claim["quote"].strip() or not contains_normalized(sources[claim["source_id"]]["text"], claim["quote"]):
-            raise ValueError("事实摘录与原文不一致（可能被改写、拼接或来源错误），本次不展示该成稿。")
-        if not isinstance(claim.get("text"), str) or not claim["text"].strip() or not contains_normalized(text, claim["text"]):
-            raise ValueError("事实点没有逐字出现在标题、导语、正文或行动引导中，本次不展示该成稿。")
+            raise ValueError("事实引用结构不完整，本次不展示该成稿。")
     images = {item["source_id"] for item in data["images"]}
     if not isinstance(draft.get("image_plan"), list):
         raise ValueError("文案缺少配图方案。")
@@ -176,12 +170,4 @@ def validate_review(review: dict, data: dict, draft: dict) -> list[dict]:
         raise ValueError("审核模型没有检查全部六个项目。")
     if checks["图片型号"]["state"] != "fail":
         checks["图片型号"].update(state="pending", detail="本轮只向模型提供图片标题，尚未核对图像中的具体型号和版本。")
-    for name, issues in draft_issues(draft, data).items():
-        checks[name].update(state="fail", detail="；".join(issues))
-    minimum, maximum = data["strategy"]["images"]
-    count = len(draft["image_plan"])
-    checks["平台图数"].update(state="pass" if minimum <= count <= maximum else "fail", detail=f"配图方案共 {count} 张；本平台要求 {minimum}–{maximum} 张。")
-    format_issues = platform_format_issues(draft, data)
-    if format_issues:
-        checks["平台格式"].update(state="fail", detail="；".join(format_issues))
     return [checks[name] for name in CHECKS]

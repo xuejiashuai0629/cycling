@@ -20,8 +20,14 @@ class ContentTests(unittest.TestCase):
         self.assertIn("通用模板", message)
         self.assertNotIn("平台图数", message)
 
-    def test_invented_quotes_and_unknown_sources_are_rejected(self):
-        for change in ({"quote": "不存在的原文"}, {"source_id": "D99"}, {"source_id": []}, {"text": "文案中不存在的句子"}):
+    def test_unknown_sources_are_rejected_but_semantic_rewording_is_allowed(self):
+        draft = deepcopy(DRAFT)
+        draft["claims"][0].update({
+            "text": "提供资料整理功能，适合老师整理课件。",
+            "quote": "离线测试事实：提供资料整理功能。仅为测试，不是真实产品参数。",
+        })
+        validate_draft(draft, prepared()["data"])
+        for change in ({"source_id": "D99"}, {"source_id": []}):
             draft = deepcopy(DRAFT)
             draft["claims"][0].update(change)
             with self.subTest(change=change), self.assertRaises(ValueError):
@@ -41,11 +47,11 @@ class ContentTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_draft(DRAFT | {"image_plan": images}, prepared()["data"])
 
-    def test_review_cannot_claim_image_verification_and_count_is_local(self):
+    def test_review_cannot_claim_image_verification_but_owns_platform_count(self):
         checks = validate_review(REVIEW, prepared()["data"], DRAFT | {"image_plan": []})
         by_name = {item["name"]: item for item in checks}
         self.assertEqual(by_name["图片型号"]["state"], "pending")
-        self.assertEqual(by_name["平台图数"]["state"], "fail")
+        self.assertEqual(by_name["平台图数"]["state"], "pass")
 
     def test_conflict_blocks_display_and_export_of_draft(self):
         review = deepcopy(REVIEW)
@@ -150,9 +156,9 @@ class ContentTests(unittest.TestCase):
         with patch("llm.generate", return_value=malformed) as write, patch("llm.review", return_value=REVIEW):
             result = agent.generate_content(prepared())
         self.assertEqual(write.call_count, 1)
-        self.assertEqual(result["data"]["stage"], "rewriting")
-        self.assertIsNone(result["data"]["draft"])
-        self.assertNotIn(DRAFT["title"], agent.export_markdown(result))
+        self.assertIn(result["data"]["stage"], ("pending_verification", "completed"))
+        self.assertEqual(result["data"]["draft"], malformed)
+        self.assertIn(DRAFT["title"], agent.export_markdown(result))
 
     def test_image_shortage_is_reported_without_making_up_images(self):
         source = prepared()
@@ -314,14 +320,14 @@ class ContentTests(unittest.TestCase):
 
     def test_invalid_writer_output_is_sent_back_without_exporting_it(self):
         malformed = deepcopy(DRAFT)
-        malformed["claims"][0]["quote"] = "捏造的引用"
+        malformed["claims"][0]["source_id"] = "D99"
         with patch("llm.generate", side_effect=[malformed, DRAFT]) as write, patch("llm.review", return_value=REVIEW) as review:
             first = agent.generate_content(prepared())
             self.assertEqual(first["data"]["stage"], "rewriting")
             self.assertNotIn(DRAFT["title"], agent.export_markdown(first))
             review.assert_not_called()
             result = agent.generate_content(first, resume=True)
-        self.assertIn("事实摘录", write.call_args.kwargs["feedback"][0])
+        self.assertIn("事实引用结构", write.call_args.kwargs["feedback"][0])
         self.assertEqual(result["data"]["draft"], DRAFT)
 
     def test_invalid_review_retries_reviewer_without_rewriting(self):

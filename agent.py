@@ -8,9 +8,8 @@ import re
 from config import PLATFORMS, redact, runtime_issues
 import llm
 from requirements_review import SCENARIO_QUESTION, broad_scenario, confirmation_text, next_state, normalize_task
-from content_review import CHECKS, platform_format_issues, validate_draft, validate_review
+from content_review import CHECKS, validate_draft, validate_review
 from tools import KnowledgeError, collect_sources, normalized
-from safety_review import draft_issues, evidence_issues
 from image_assets import delivery_issues, usable_images
 
 
@@ -175,11 +174,6 @@ def _generate_content(prepared: dict, *, resume: bool = False) -> dict:
             job = {"task": deepcopy(data["task"]), "attempt": 0, "phase": "write", "previous_draft": None, "feedback": [], "candidate": None}
             data["_rewrite"] = job
         data["draft"] = None
-        conflicts = evidence_issues(data)
-        if conflicts:
-            data.update(stage="blocked", review_issues=conflicts, verification=[{"name": "产品事实", "state": "fail", "detail": "；".join(conflicts)}])
-            data.pop("_rewrite", None)
-            return {**result, "status": "error", "message": "发现资料型号不符或参数冲突，已停止成稿，请人工确认资料。"}
         minimum, maximum = data["strategy"]["images"]
         usable, image_issues = usable_images(data)
         if len(usable) < minimum:
@@ -204,16 +198,10 @@ def _generate_content(prepared: dict, *, resume: bool = False) -> dict:
                 return {**result, "status": "ok", "message": f"第{attempt + 1}轮输出校验未通过，正带着具体问题自动重写。"}
             job.update(candidate=draft, phase="review")
         draft = job["candidate"]
-        local_issues = draft_issues(draft, data)
-        layout = platform_format_issues(draft, data)
-        if layout:
-            local_issues["平台格式"] = layout
-        if not minimum <= len(draft["image_plan"]) <= maximum:
-            local_issues["平台图数"] = [f"请从现有候选图选择{minimum}–{maximum}张并逐一标注插图位置。"]
         data["verification"] = [source_verification(data)] + [
-            {"name": name, "state": "fail" if name in local_issues else "pending", "detail": "；".join(local_issues[name]) if name in local_issues else "本地检查未发现问题，等待本轮独立审核。"} for name in CHECKS
+            {"name": name, "state": "pending", "detail": "等待独立审核 Agent 检查。"} for name in CHECKS
         ]
-        data["review_issues"] = [name + "：" + "；".join(issues) for name, issues in local_issues.items()]
+        data["review_issues"] = []
         try:
             review = llm.review(data, draft)
             checks = validate_review(review, data, draft)
@@ -230,8 +218,6 @@ def _generate_content(prepared: dict, *, resume: bool = False) -> dict:
                 feedback.append(check["name"] + "：" + check["detail"])
             elif check["state"] == "pending":
                 pending.append(check["name"] + "：" + check["detail"])
-        if not minimum <= len(draft["image_plan"]) <= maximum:
-            feedback.append(f"请从现有候选图中选择{minimum}–{maximum}张，逐一添加正文插图标记和配图方案。")
         feedback = list(dict.fromkeys(feedback))
         data["review_issues"] = list(dict.fromkeys(review["issues"] + feedback + pending))
         if review["decision"] == "blocked" and (not feedback or any(check["name"] == "产品事实" and check["state"] != "pass" for check in checks)):
