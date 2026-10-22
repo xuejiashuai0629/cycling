@@ -38,6 +38,12 @@ def writing_contract(data: dict) -> dict:
     }
     minimum, maximum = data["strategy"]["images"]
     words = word_count_limits(data["task"].get("word_count"))
+    if words["minimum"] and words["maximum"] and words["maximum"] > words["minimum"]:
+        words["target_minimum"] = round((words["minimum"] + words["maximum"]) / 2)
+        words["target_maximum"] = words["maximum"]
+    else:
+        words["target_minimum"] = words["minimum"]
+        words["target_maximum"] = words["maximum"]
     return {
         "platform": platform, **rules[platform],
         "tone": data["task"].get("tone") or "专业导购",
