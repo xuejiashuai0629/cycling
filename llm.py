@@ -125,8 +125,8 @@ def generate(task: dict, evidence: dict, *, previous_draft: dict | None = None, 
     payload = evidence_for_model(evidence)
     if previous_draft is not None:
         payload.update(previous_draft=previous_draft, revision_requests=feedback or [])
-    return complete_json(system_prompt() + "\n" + prompt("scenario_reference") + "\n" + prompt("writing"), payload, max_tokens=6000)
+    return complete_json(system_prompt() + "\n" + prompt("scenario_reference") + "\n" + prompt("writing") + "\n" + prompt("humanizer"), payload, max_tokens=6000)
 
 
 def review(data: dict, draft: dict) -> dict:
-    return complete_json(system_prompt() + "\n" + prompt("review"), {**evidence_for_model(data), "draft": draft}, max_tokens=4000)
+    return complete_json(system_prompt() + "\n" + prompt("review") + "\n" + prompt("humanizer"), {**evidence_for_model(data), "draft": draft}, max_tokens=4000)
