@@ -227,7 +227,13 @@ def collect_sources(product: str, request_id: str, image_count: int) -> dict:
     directory = OUTPUTS / request_id
     if not directory.resolve().is_relative_to(ROOT) or not directory.resolve().is_relative_to(OUTPUTS.resolve()):
         raise KnowledgeError("素材保存位置超出项目范围。")
-    for item in documents[:3] + pictures[:image_count]:
+    # A single oversized/unreadable ima attachment must not stop the task.
+    # Keep trying later candidates; stop after enough useful materials.
+    doc_attempts = 0
+    for item in documents:
+        if len(sources) >= 3 or doc_attempts >= 12:
+            break
+        doc_attempts += 1
         try:
             content = client.read_media(item)
             base = {"title": item.get("title", "未命名资料"), "knowledge_base": KNOWLEDGE_BASE, "media_id": item["media_id"], "knowledge_path": item.get("folder_path", ""), "path_note": "仅列出实际浏览到的目录层级，未取得完整库内路径" if item.get("folder_path") else "本次搜索未返回库内目录路径；请按资料标题在 ima 中定位"}
@@ -255,6 +261,30 @@ def collect_sources(product: str, request_id: str, image_count: int) -> dict:
         except (KnowledgeError, OSError) as error:
             if isinstance(error, KnowledgeError) and error.quota_exhausted:
                 # Further documents and images share this quota; do not keep requesting.
+                raise
+            warnings.append(item.get("title", "资料") + "：" + (str(error) if isinstance(error, KnowledgeError) else "本地文件保存失败。"))
+            if client.deadline <= time.monotonic() or client.calls >= MAX_API_CALLS:
+                break
+    pic_attempts = 0
+    for item in pictures:
+        if len(images) >= image_count or pic_attempts >= 12:
+            break
+        pic_attempts += 1
+        try:
+            content = client.read_media(item)
+            base = {"title": item.get("title", "未命名资料"), "knowledge_base": KNOWLEDGE_BASE, "media_id": item["media_id"], "knowledge_path": item.get("folder_path", ""), "path_note": "仅列出实际浏览到的目录层级，未取得完整库内路径" if item.get("folder_path") else "本次搜索未返回库内目录路径；请按资料标题在 ima 中定位"}
+            if content.startswith(b"\xff\xd8\xff"):
+                suffix = ".jpg"
+            elif content.startswith(b"\x89PNG\r\n\x1a\n"):
+                suffix = ".png"
+            else:
+                raise KnowledgeError("第一版仅预览真实 JPEG / PNG 图片，当前文件签名不符合。")
+            directory.mkdir(parents=True, exist_ok=True)
+            path = directory / f"image_{len(images) + 1}{suffix}"
+            path.write_bytes(content)
+            images.append({**base, "source_id": f"I{len(images) + 1}", "path": path.relative_to(ROOT).as_posix(), "match_status": "待核验", "description": "候选素材，需核对图片中的具体型号与版本", "position": "文案生成后确定"})
+        except (KnowledgeError, OSError) as error:
+            if isinstance(error, KnowledgeError) and error.quota_exhausted:
                 raise
             warnings.append(item.get("title", "资料") + "：" + (str(error) if isinstance(error, KnowledgeError) else "本地文件保存失败。"))
             if client.deadline <= time.monotonic() or client.calls >= MAX_API_CALLS:
