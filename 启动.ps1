@@ -13,6 +13,13 @@ $candidates = New-Object System.Collections.Generic.List[string]
 if ($PythonPath) {
     $candidates.Add($PythonPath)
 } else {
+    $localAppData = $env:LOCALAPPDATA
+    foreach ($candidate in @(
+        (Join-Path $localAppData 'Python\pythoncore-3.14-64\python.exe'),
+        (Join-Path $localAppData 'Programs\Python\Python314\python.exe')
+    )) {
+        if (Test-Path -LiteralPath $candidate) { $candidates.Add($candidate) }
+    }
     foreach ($name in @('python3.15', 'python')) {
         $command = Get-Command $name -ErrorAction SilentlyContinue
         if ($command) { $candidates.Add($command.Source) }
@@ -25,14 +32,14 @@ if ($PythonPath) {
             # Unregistered portable installations are checked below.
         }
     }
-    foreach ($registry in @('HKCU:\Software\Python\PythonCore\3.15\InstallPath', 'HKLM:\Software\Python\PythonCore\3.15\InstallPath')) {
+    foreach ($registry in @('HKCU:\Software\Python\PythonCore\3.14\InstallPath', 'HKLM:\Software\Python\PythonCore\3.14\InstallPath')) {
         if (Test-Path -LiteralPath $registry) {
             $install = (Get-Item -LiteralPath $registry).GetValue('')
             if ($install) { $candidates.Add((Join-Path $install 'python.exe')) }
         }
     }
     foreach ($drive in Get-PSDrive -PSProvider FileSystem) {
-        foreach ($folder in @('python', 'Python315')) {
+        foreach ($folder in @('python', 'Python314')) {
             $candidate = Join-Path $drive.Root ($folder + '\python.exe')
             if (Test-Path -LiteralPath $candidate) { $candidates.Add($candidate) }
         }
@@ -42,13 +49,13 @@ $selected = $null
 foreach ($candidate in ($candidates | Select-Object -Unique)) {
     if (-not (Test-Path -LiteralPath $candidate)) { continue }
     $version = & $candidate -c 'import sys; print(sys.version.split()[0])' 2>$null
-    if ($LASTEXITCODE -eq 0 -and $version -eq '3.15.0') {
+    if ($LASTEXITCODE -eq 0 -and $version -eq '3.14.6') {
         $selected = $candidate
         break
     }
 }
 if (-not $selected) {
-    Write-Host '未找到 Python 3.15.0。请使用：.\启动.ps1 -PythonPath "你的python.exe完整位置"'
+    Write-Host '未找到 Python 3.14.6。请使用：.\启动.ps1 -PythonPath "你的python.exe完整位置"'
     exit 1
 }
 $streamlitVersion = & $selected -c 'import streamlit; print(streamlit.__version__)' 2>$null
@@ -56,7 +63,7 @@ if ($LASTEXITCODE -ne 0 -or $streamlitVersion -ne '1.66.0') {
     Write-Host '所选 Python 中缺少 Streamlit 1.66.0，请先统一环境；本脚本不会自动修改版本。'
     exit 1
 }
-Write-Host "环境检查通过：Python 3.15.0 / Streamlit 1.66.0"
+Write-Host "环境检查通过：Python 3.14.6 / Streamlit 1.66.0"
 if ($CheckOnly) { exit 0 }
 if ($Test) {
     & $selected -m unittest discover -s tests -v

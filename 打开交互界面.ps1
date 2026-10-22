@@ -28,6 +28,18 @@ if ($PythonPath) {
     $python = Get-Item -LiteralPath $PythonPath -ErrorAction SilentlyContinue
 }
 else {
+    foreach ($candidate in @(
+        (Join-Path $env:LOCALAPPDATA 'Python\pythoncore-3.14-64\python.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314\python.exe')
+    )) {
+        if (Test-Path -LiteralPath $candidate) {
+            $python = Get-Item -LiteralPath $candidate
+            break
+        }
+    }
+}
+
+if (-not $python) {
     $python = Get-Command python -ErrorAction SilentlyContinue
     if (-not $python) {
         $python = Get-Command py -ErrorAction SilentlyContinue
