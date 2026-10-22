@@ -4,7 +4,7 @@ import json
 import re
 import socket
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler
 
 from config import ROOT, settings
 
@@ -43,7 +43,7 @@ def complete_json(system: str, payload: dict, *, max_tokens: int = 2500) -> dict
     }
     request = Request(ENDPOINT, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
     try:
-        with build_opener(NoRedirect()).open(request, timeout=REQUEST_TIMEOUT) as response:
+        with build_opener(NoRedirect(), ProxyHandler({})).open(request, timeout=REQUEST_TIMEOUT) as response:
             raw = response.read(2 * 1024 * 1024 + 1)
         if len(raw) > 2 * 1024 * 1024:
             raise ModelError("DeepSeek 返回内容过大，请缩小任务后重试。")
