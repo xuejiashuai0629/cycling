@@ -174,6 +174,18 @@ def validate_review(review: dict, data: dict, draft: dict) -> list[dict]:
         checks[item["name"]] = deepcopy(item)
     if set(checks) != set(CHECKS):
         raise ValueError("审核模型没有检查全部六个项目。")
-    if checks["图片型号"]["state"] != "fail":
-        checks["图片型号"].update(state="pending", detail="本轮只向模型提供图片标题，尚未核对图像中的具体型号和版本。")
+    planned = {item["source_id"] for item in draft.get("image_plan", [])}
+    selected = [item for item in data.get("images", []) if item.get("source_id") in planned]
+    verification_ready = bool(selected) and all(
+        (
+            item.get("ocr_analysis", {}).get("status") == "ok"
+            and item.get("ocr_analysis", {}).get("ocr_text", "").strip()
+        )
+        or item.get("manual_confirmation", {}).get("status") == "confirmed"
+        for item in selected
+    )
+    if checks["图片型号"]["state"] != "fail" and not verification_ready:
+        checks["图片型号"].update(state="pending", detail="本轮缺少足够的 OCR 或人工确认，不能判定图片型号与任务一致。")
+    if checks["图片型号"]["state"] != "fail" and verification_ready:
+        checks["图片型号"].update(state="pass", detail="已获得 OCR 文本证据或用户人工确认；图片内容仍建议人工复核。")
     return [checks[name] for name in CHECKS]

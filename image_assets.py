@@ -95,6 +95,8 @@ def delivery_issues(data: dict, draft: dict | None = None) -> list[str]:
             issues.append(f"配图 {identifier} 没有唯一对应的来源图片，请重新读取资料。")
         else:
             chosen.append(matches[0])
+        if chosen and chosen[-1].get("manual_confirmation", {}).get("status") == "rejected":
+            issues.append(f"配图 {identifier}：用户人工确认图片型号不一致，不能交付。")
     _, file_issues = usable_images({"task": data["task"], "images": chosen})
     return issues + file_issues
 

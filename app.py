@@ -10,6 +10,7 @@ from config import KNOWLEDGE_BASE, STREAMLIT_VERSION, runtime_issues
 import llm
 import diagnostics
 from image_assets import bundle, delivery_issues, image_file
+from image_analysis import refresh_verification
 from requirements_review import LABELS, REQUIRED
 
 st.set_page_config(page_title="华为 PC · 营销创作台", page_icon="✦", layout="wide")
@@ -102,7 +103,7 @@ with st.sidebar:
                 st.caption(connection["scope"])
     st.write("**工作流程**")
     st.caption("理解需求与查资料 → 写文案 → 独立审核")
-    st.caption("三个角色共用 DeepSeek；图片内容核验仍待完成。")
+    st.caption("三个角色共用 DeepSeek；图片用 OCR 与人工确认辅助核验。")
     if llm.is_ready():
         st.caption("DeepSeek 密钥已填写，首次请求时验证。")
     else:
@@ -209,6 +210,25 @@ with right:
                     st.warning("该图片暂时无法预览，请重新读取并核对来源文件。")
                 st.caption("来源：" + picture["knowledge_base"] + " · 型号与版本待核验")
                 st.caption(agent.source_location(picture))
+                ocr = picture.get("ocr_analysis") or {}
+                if ocr.get("status") == "ok" and ocr.get("ocr_text"):
+                    with st.expander("OCR 识别到的图片文字"):
+                        st.caption("OCR 只是可见文字证据，不能代替完整视觉核验。")
+                        st.text(ocr["ocr_text"])
+                elif ocr.get("status") == "no_text":
+                    st.caption("OCR 未识别到可见文字；图片型号需要人工确认。")
+                elif ocr.get("status") == "error":
+                    st.caption("OCR 识别失败；图片型号需要人工确认。")
+                confirm_key = f"image_confirm_{result.get('request_id', 'task')}_{picture.get('source_id', len(data['images']))}"
+                choice = st.selectbox(
+                    "人工确认图片型号",
+                    ["待人工确认", "确认型号一致", "确认型号不一致"],
+                    key=confirm_key,
+                    disabled=st.session_state.busy,
+                )
+                status = {"待人工确认": "pending", "确认型号一致": "confirmed", "确认型号不一致": "rejected"}[choice]
+                picture["manual_confirmation"] = {"status": status, "by": "user"}
+                refresh_verification(data)
             if not data["images"]:
                 st.info("没有候选图片，后续需补齐平台要求的配图。")
         with tabs[2]:

@@ -11,6 +11,7 @@ from requirements_review import SCENARIO_QUESTION, broad_scenario, confirmation_
 from content_review import CHECKS, validate_draft, validate_review
 from tools import KnowledgeError, collect_sources, normalized
 from image_assets import delivery_issues, usable_images
+from image_analysis import attach_analysis
 
 
 def validate_task(task: dict) -> dict:
@@ -77,7 +78,7 @@ def prepare_materials(task: dict, *, mode: str = "ima") -> dict:
             "verification": [
                 source_verification({"material_mode": mode}),
                 {"name": "产品事实", "state": "pending", "detail": "尚未逐项提取、核对事实及资料冲突。"},
-                {"name": "图片型号", "state": "pending", "detail": "候选图片仅做名称筛选；具体型号、版本和图像内容尚未核对。"},
+                {"name": "图片型号", "state": "pending", "detail": "候选图片已做名称筛选；OCR 与人工确认将在写作前提供证据。"},
                 {"name": "营销合规", "state": "pending", "detail": "尚未生成文案，未执行完整合规核验。"},
             ],
         }
@@ -181,6 +182,7 @@ def _generate_content(prepared: dict, *, resume: bool = False) -> dict:
             return _await_images(result, [detail] + image_issues)
         data["images"] = usable
         data["warnings"] = list(dict.fromkeys(data.get("warnings", []) + image_issues))
+        attach_analysis(data)
         attempt = job["attempt"]
         data.update(rewrite_count=attempt, stage="review_required")
         if job["phase"] == "write":

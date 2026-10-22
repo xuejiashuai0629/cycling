@@ -104,8 +104,16 @@ def evidence_for_model(data: dict) -> dict:
         "writing_contract": writing_contract(data),
         "sources": [{"source_id": item["source_id"], "title": item["title"], "text": item["text"][:16000]} for item in data["sources"]],
         "evidence_pool": pool,
-        "images": [{"source_id": item["source_id"], "title": item["title"]} for item in data["images"]],
-        "limitations": "每份文字最多提供前16000字符；图片只提供标题，尚未检查图像内容。",
+        "images": [
+            {
+                "source_id": item["source_id"],
+                "title": item["title"],
+                "ocr_analysis": item.get("ocr_analysis", {"status": "pending", "ocr_text": ""}),
+                "manual_confirmation": item.get("manual_confirmation", {"status": "pending"}),
+            }
+            for item in data["images"]
+        ],
+        "limitations": "每份文字最多提供前16000字符；图片提供标题和OCR可见文字，OCR不是完整视觉识别，无文字或证据不足时不得判定图片型号核验通过。",
     }
 
 
