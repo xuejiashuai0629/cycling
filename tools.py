@@ -14,8 +14,8 @@ from urllib.parse import urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from config import (
-    API_TIMEOUT, DOWNLOAD_TIMEOUT, KNOWLEDGE_BASE, MAX_API_CALLS,
-    OUTPUTS, ROOT, TOTAL_TIMEOUT, ima_environment, redact,
+    API_TIMEOUT, DOWNLOAD_TIMEOUT, MAX_API_CALLS, OUTPUTS, ROOT,
+    TOTAL_TIMEOUT, ima_environment, knowledge_base_name, redact,
 )
 from product_identity import matches_product, model_names
 
@@ -117,8 +117,9 @@ class ImaClient:
         return collected
 
     def knowledge_base(self) -> str:
-        matches = self.pages("search_knowledge_base", {"query": KNOWLEDGE_BASE, "limit": 20})
-        exact = [item for item in matches if item.get("kb_name", item.get("name")) == KNOWLEDGE_BASE]
+        kb_name = knowledge_base_name()
+        matches = self.pages("search_knowledge_base", {"query": kb_name, "limit": 20})
+        exact = [item for item in matches if item.get("kb_name", item.get("name")) == kb_name]
         if len(exact) != 1:
             raise KnowledgeError("未能唯一找到指定共享知识库，请检查当前凭证所属账号是否已加入该库。")
         identifier = exact[0].get("kb_id", exact[0].get("id"))
@@ -236,7 +237,7 @@ def collect_sources(product: str, request_id: str, image_count: int) -> dict:
         doc_attempts += 1
         try:
             content = client.read_media(item)
-            base = {"title": item.get("title", "未命名资料"), "knowledge_base": KNOWLEDGE_BASE, "media_id": item["media_id"], "knowledge_path": item.get("folder_path", ""), "path_note": "仅列出实际浏览到的目录层级，未取得完整库内路径" if item.get("folder_path") else "本次搜索未返回库内目录路径；请按资料标题在 ima 中定位"}
+            base = {"title": item.get("title", "未命名资料"), "knowledge_base": knowledge_base_name(), "media_id": item["media_id"], "knowledge_path": item.get("folder_path", ""), "path_note": "仅列出实际浏览到的目录层级，未取得完整库内路径" if item.get("folder_path") else "本次搜索未返回库内目录路径；请按资料标题在 ima 中定位"}
             if item in documents:
                 try:
                     text = content.decode("utf-8-sig")
@@ -272,7 +273,7 @@ def collect_sources(product: str, request_id: str, image_count: int) -> dict:
         pic_attempts += 1
         try:
             content = client.read_media(item)
-            base = {"title": item.get("title", "未命名资料"), "knowledge_base": KNOWLEDGE_BASE, "media_id": item["media_id"], "knowledge_path": item.get("folder_path", ""), "path_note": "仅列出实际浏览到的目录层级，未取得完整库内路径" if item.get("folder_path") else "本次搜索未返回库内目录路径；请按资料标题在 ima 中定位"}
+            base = {"title": item.get("title", "未命名资料"), "knowledge_base": knowledge_base_name(), "media_id": item["media_id"], "knowledge_path": item.get("folder_path", ""), "path_note": "仅列出实际浏览到的目录层级，未取得完整库内路径" if item.get("folder_path") else "本次搜索未返回库内目录路径；请按资料标题在 ima 中定位"}
             if content.startswith(b"\xff\xd8\xff"):
                 suffix = ".jpg"
             elif content.startswith(b"\x89PNG\r\n\x1a\n"):

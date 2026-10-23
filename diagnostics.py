@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 import json
 
-from config import KNOWLEDGE_BASE, ROOT, redact, settings
+from config import ROOT, knowledge_base_name, redact, settings
 
 
 def ima_configured() -> bool:
@@ -13,7 +13,7 @@ def ima_configured() -> bool:
 
 def check_ima_connection() -> dict:
     from tools import ImaClient, KnowledgeError, items
-    summary = {"checked_at": datetime.now(timezone.utc).isoformat(), "knowledge_base": KNOWLEDGE_BASE}
+    summary = {"checked_at": datetime.now(timezone.utc).isoformat(), "knowledge_base": knowledge_base_name()}
     try:
         client = ImaClient(total_timeout=45)
         kb_id = client.knowledge_base()
@@ -30,7 +30,7 @@ def save_materials_summary(result: dict, product: str, *, mode: str = "ima") -> 
     data = result.get("data", {})
     summary = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
-        "knowledge_base": KNOWLEDGE_BASE if mode == "ima" else "本地测试资料", "product": redact(product), "material_mode": mode,
+        "knowledge_base": knowledge_base_name() if mode == "ima" else "本地测试资料", "product": redact(product), "material_mode": mode,
         "status": result["status"], "message": redact(result["message"]),
         "source_count": len(data.get("sources", [])), "image_count": len(data.get("images", [])),
     }

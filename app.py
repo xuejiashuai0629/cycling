@@ -11,7 +11,7 @@ import uuid
 import streamlit as st
 
 import agent
-from config import KNOWLEDGE_BASE, ROOT, STREAMLIT_VERSION, runtime_issues
+from config import ROOT, STREAMLIT_VERSION, knowledge_base_name, runtime_issues, settings
 import llm
 import diagnostics
 from image_assets import bundle, delivery_issues, image_file
@@ -33,6 +33,8 @@ for key, value in DEFAULTS.items():
         st.session_state[key] = deepcopy(value)
 if "history_id" not in st.session_state:
     st.session_state.history_id = None
+if "service_message" not in st.session_state:
+    st.session_state.service_message = ""
 
 HISTORY_DIR = ROOT / "history"
 
@@ -161,6 +163,43 @@ def load_history(record_id: str) -> None:
     st.session_state.pop("pending_action", None)
 
 
+def save_env_values(updates: dict[str, str]) -> None:
+    """Write only the requested keys back to the local .env file."""
+    path = ROOT / ".env"
+    lines = path.read_text(encoding="utf-8-sig").splitlines() if path.exists() else []
+    pending = dict(updates)
+    kept = []
+    for line in lines:
+        key = line.split("=", 1)[0].strip() if "=" in line else ""
+        if key in pending:
+            kept.append(f"{key}={pending.pop(key)}")
+        else:
+            kept.append(line)
+    for key, value in pending.items():
+        if value:
+            kept.append(f"{key}={value}")
+    path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+
+
+def save_service_config() -> None:
+    """Persist user-provided ima and AI service settings into .env."""
+    updates = {
+        "IMA_OPENAPI_CLIENTID": str(st.session_state.get("cfg_ima_clientid", "")).strip(),
+        "IMA_OPENAPI_APIKEY": str(st.session_state.get("cfg_ima_apikey", "")).strip(),
+        "IMA_KNOWLEDGE_BASE": str(st.session_state.get("cfg_ima_kb", "")).strip(),
+        "DEEPSEEK_API_KEY": str(st.session_state.get("cfg_ai_apikey", "")).strip(),
+        "DEEPSEEK_BASE_URL": str(st.session_state.get("cfg_ai_base_url", "")).strip().rstrip("/"),
+        "DEEPSEEK_MODEL": str(st.session_state.get("cfg_ai_model", "")).strip(),
+    }
+    base_url = updates["DEEPSEEK_BASE_URL"]
+    if base_url and not (base_url.startswith("https://") or base_url.startswith("http://")):
+        st.session_state.service_message = "AI Base URL 必须以 http:// 或 https:// 开头。"
+        return
+    save_env_values(updates)
+    st.session_state.connection_status = None
+    st.session_state.service_message = "配置已保存到本机 .env，并立即生效。"
+
+
 def pause_generation() -> None:
     if st.session_state.result:
         st.session_state.result = agent.pause_generation(st.session_state.result)
@@ -211,7 +250,7 @@ with st.sidebar:
     if st.session_state.run_mode == "本地资料测试":
         st.caption("本地目录：华为PC全板块深度知识库_v7")
     st.caption("真实知识库：")
-    st.caption(KNOWLEDGE_BASE)
+    st.caption(knowledge_base_name())
     st.caption("ima 凭证已填写，尚需实时验证。" if diagnostics.ima_configured() else "尚未填写完整 ima 凭证。")
     st.button("检查知识库连接", disabled=st.session_state.busy or st.session_state.run_mode != "真实资料", on_click=queue_action, args=("connection",), width="stretch")
     connection = st.session_state.connection_status
@@ -222,6 +261,19 @@ with st.sidebar:
             with st.expander("接口返回摘要（已隐藏凭证和内部标识）"):
                 st.json(connection["response_summary"])
                 st.caption(connection["scope"])
+    st.divider()
+    st.write("**服务配置（API）**")
+    st.caption("保存到本机 .env；用户可接入自己的 ima 知识库和 AI 服务。")
+    current = settings()
+    st.text_input("ima Client ID", key="cfg_ima_clientid", value=current.get("IMA_OPENAPI_CLIENTID", ""), type="password", disabled=st.session_state.busy)
+    st.text_input("ima API Key", key="cfg_ima_apikey", value=current.get("IMA_OPENAPI_APIKEY", ""), type="password", disabled=st.session_state.busy)
+    st.text_input("ima 知识库名称", key="cfg_ima_kb", value=knowledge_base_name(), disabled=st.session_state.busy)
+    st.text_input("AI API Key", key="cfg_ai_apikey", value=current.get("DEEPSEEK_API_KEY", ""), type="password", disabled=st.session_state.busy)
+    st.text_input("AI Base URL（可选）", key="cfg_ai_base_url", value=current.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"), disabled=st.session_state.busy)
+    st.text_input("AI 模型", key="cfg_ai_model", value=current.get("DEEPSEEK_MODEL", "deepseek-flash"), disabled=st.session_state.busy)
+    st.button("保存服务配置", on_click=save_service_config, disabled=st.session_state.busy, width="stretch")
+    if st.session_state.get("service_message"):
+        st.caption(st.session_state.service_message)
     st.write("**工作流程**")
     st.caption("理解需求与查资料 → 写文案 → 独立审核")
     st.caption("三个角色共用 DeepSeek；图片用 OCR 与人工确认辅助核验。")

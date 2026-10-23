@@ -38,6 +38,12 @@ def settings() -> dict[str, str]:
     return values
 
 
+def knowledge_base_name() -> str:
+    """The user-configurable ima knowledge base, with the original default kept."""
+    value = settings().get("IMA_KNOWLEDGE_BASE", "").strip()
+    return value or KNOWLEDGE_BASE
+
+
 def redact(message: str) -> str:
     for key, value in settings().items():
         if value and ("KEY" in key or "TOKEN" in key or "CLIENTID" in key):
