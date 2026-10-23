@@ -8,6 +8,7 @@
 /tmp/
 /.ima-state/
 /outputs/
+/history/
 
 # 本地凭证和 Python 运行环境。
 .env

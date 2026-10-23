@@ -1,12 +1,17 @@
 """Conversational Streamlit workspace; stages share one DeepSeek adapter."""
 
 from copy import deepcopy
+from datetime import datetime
+import json
+from pathlib import Path
+import re
 import sys
+import uuid
 
 import streamlit as st
 
 import agent
-from config import KNOWLEDGE_BASE, STREAMLIT_VERSION, runtime_issues
+from config import KNOWLEDGE_BASE, ROOT, STREAMLIT_VERSION, runtime_issues
 import llm
 import diagnostics
 from image_assets import bundle, delivery_issues, image_file
@@ -26,6 +31,10 @@ DEFAULTS = {"busy": False, "result": None, "error_message": "", "history": [], "
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = deepcopy(value)
+if "history_id" not in st.session_state:
+    st.session_state.history_id = None
+
+HISTORY_DIR = ROOT / "history"
 
 
 def reset_results() -> None:
@@ -33,11 +42,123 @@ def reset_results() -> None:
         if key != "run_mode":
             st.session_state[key] = deepcopy(value)
     st.session_state.pop("pending_action", None)
+    st.session_state.history_id = None
 
 
 def clear_task() -> None:
     if not st.session_state.busy:
         reset_results()
+        st.session_state.history_id = None
+
+
+def new_conversation() -> None:
+    if st.session_state.busy:
+        return
+    reset_results()
+    st.session_state.history_id = None
+    st.session_state.error_message = ""
+
+
+def _history_path(record_id: str) -> Path | None:
+    if not isinstance(record_id, str) or not re.fullmatch(r"[0-9a-f]{32}", record_id):
+        return None
+    return HISTORY_DIR / f"{record_id}.json"
+
+
+def list_history() -> list[dict]:
+    """Return saved conversations, newest first."""
+    if not HISTORY_DIR.is_dir():
+        return []
+    records = []
+    for path in HISTORY_DIR.glob("*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        records.append({
+            "id": path.stem,
+            "title": data.get("title") or "未命名对话",
+            "created_at": data.get("created_at", ""),
+            "updated_at": data.get("updated_at", ""),
+        })
+    return sorted(records, key=lambda item: item["updated_at"], reverse=True)
+
+
+def _history_title() -> str:
+    result = st.session_state.get("result")
+    if isinstance(result, dict):
+        task = result.get("data", {}).get("task") if isinstance(result.get("data"), dict) else None
+        if isinstance(task, dict):
+            product = task.get("product") or "自动选型"
+            platform = task.get("platform") or "未选平台"
+            audience = task.get("audience") or "未指定人群"
+            return f"{product} · {platform} · {audience}"
+    for message in st.session_state.get("history", []):
+        if isinstance(message, dict) and message.get("role") == "user" and isinstance(message.get("content"), str):
+            text = " ".join(message["content"].split())
+            return text[:28] or "未命名对话"
+    return "未命名对话"
+
+
+def save_history() -> None:
+    """Persist the current conversation after it has meaningful content."""
+    history = st.session_state.get("history") or []
+    dialog = st.session_state.get("dialog")
+    result = st.session_state.get("result")
+    if not history and not dialog and not result:
+        return
+    record_id = st.session_state.get("history_id")
+    if not record_id:
+        record_id = uuid.uuid4().hex
+        st.session_state.history_id = record_id
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
+    record = {
+        "id": record_id,
+        "title": _history_title(),
+        "created_at": now,
+        "updated_at": now,
+        "run_mode": st.session_state.get("run_mode", "本地资料测试"),
+        "history": deepcopy(history),
+        "dialog": deepcopy(dialog),
+        "confirmed_task": deepcopy(st.session_state.get("confirmed_task")),
+        "result": deepcopy(result),
+        "connection_status": deepcopy(st.session_state.get("connection_status")),
+    }
+    try:
+        HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+        (HISTORY_DIR / f"{record_id}.json").write_text(
+            json.dumps(record, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except (OSError, TypeError, ValueError):
+        pass
+
+
+def load_history(record_id: str) -> None:
+    if st.session_state.busy:
+        return
+    path = _history_path(record_id)
+    if not path or not path.is_file():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if not isinstance(data, dict):
+        return
+    st.session_state.history = deepcopy(data.get("history") or [])
+    st.session_state.dialog = deepcopy(data.get("dialog"))
+    st.session_state.confirmed_task = deepcopy(data.get("confirmed_task"))
+    st.session_state.result = deepcopy(data.get("result"))
+    st.session_state.connection_status = deepcopy(data.get("connection_status"))
+    if isinstance(data.get("run_mode"), str):
+        st.session_state.run_mode = data["run_mode"]
+    st.session_state.history_id = record_id
+    st.session_state.error_message = ""
+    st.session_state.busy = False
+    st.session_state.pop("pending_action", None)
 
 
 def pause_generation() -> None:
@@ -109,6 +230,25 @@ with st.sidebar:
     else:
         st.info("请在项目 .env 中填写 DEEPSEEK_API_KEY，保存后再开始对话。")
     st.caption(f"Python {sys.version.split()[0]} · Streamlit {st.__version__}")
+    st.divider()
+    st.write("**历史记录**")
+    st.button("新建对话", on_click=new_conversation, disabled=st.session_state.busy, width="stretch")
+    records = list_history()
+    if records:
+        for record in records:
+            label = record.get("title") or "未命名对话"
+            st.button(
+                label,
+                key=f"history_{record['id']}",
+                on_click=load_history,
+                args=(record["id"],),
+                disabled=st.session_state.busy,
+                width="stretch",
+            )
+            updated = record.get("updated_at", "").replace("T", " ")
+            st.caption("更新：" + (updated[:16] if updated else "未知"))
+    else:
+        st.caption("暂无历史对话。")
 
 if st.__version__ != STREAMLIT_VERSION:
     st.error(f"项目约定 Streamlit {STREAMLIT_VERSION}，请统一版本后运行。")
@@ -354,3 +494,5 @@ if st.session_state.busy and "pending_action" in st.session_state:
             st.session_state.busy = False
             st.session_state.pop("pending_action", None)
     st.rerun()
+
+save_history()
