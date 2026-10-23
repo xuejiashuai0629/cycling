@@ -136,3 +136,26 @@ def bundle(result: dict) -> bytes:
         for name, content in files:
             archive.writestr(name, content)
     return output.getvalue()
+
+
+def images_bundle(result: dict) -> bytes:
+    """Zip only the retrieved images, without any article text."""
+    data = result["data"]
+    images = data.get("images") or []
+    if not images:
+        raise ValueError("当前没有可下载的检索图片。")
+    output = BytesIO()
+    written = 0
+    with ZipFile(output, "w", compression=ZIP_STORED) as archive:
+        for index, picture in enumerate(images, 1):
+            try:
+                _, content = _read_image(picture)
+            except (ValueError, OSError):
+                continue
+            suffix = ".png" if content.startswith(b"\x89PNG\r\n\x1a\n") else ".jpg"
+            name = f"{index:02d}_{picture.get('source_id', 'image')}{suffix}"
+            archive.writestr(name, content)
+            written += 1
+    if not written:
+        raise ValueError("图片文件不可用，无法下载。")
+    return output.getvalue()

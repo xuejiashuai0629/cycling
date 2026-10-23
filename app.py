@@ -14,7 +14,7 @@ import agent
 from config import ROOT, STREAMLIT_VERSION, knowledge_base_name, runtime_issues, settings
 import llm
 import diagnostics
-from image_assets import bundle, delivery_issues, image_file
+from image_assets import delivery_issues, image_file, images_bundle
 from image_analysis import refresh_verification
 from requirements_review import LABELS, REQUIRED
 
@@ -445,13 +445,22 @@ with right:
                 st.write(draft["cta"])
                 if draft["tags"]:
                     st.caption(" ".join("#" + tag.strip().lstrip("#") for tag in draft["tags"]))
-                with st.expander("复制图文（点击代码框右上角复制按钮）"):
-                    st.caption("待核验草稿；发布前请处理核验结果中的事项。文字复制不会自动复制图片，请使用下方“下载图文与原图”保留实际图片。")
-                    st.code(agent.draft_markdown(data), language="markdown", wrap_lines=True)
+                copy_parts = [
+                    draft["title"],
+                    draft["intro"],
+                    re.sub(r"【配图\s*I\d+\s*】", "", draft["body"]).strip(),
+                    draft["cta"],
+                ]
+                if draft["tags"]:
+                    copy_parts.append(" ".join("#" + tag.strip().lstrip("#") for tag in draft["tags"]))
+                copy_text = "\n\n".join(part for part in copy_parts if part)
+                with st.expander("复制原文（点击代码框右上角复制按钮）"):
+                    st.caption("只复制正文文字，不包含图片链接和图片说明。")
+                    st.code(copy_text, language="text", wrap_lines=True)
                 try:
-                    package = bundle(result)
-                    st.download_button("下载图文与原图（ZIP）", data=package, file_name="营销图文与原图.zip", mime="application/zip", disabled=st.session_state.busy, width="stretch")
-                    st.caption("解压后保留 Markdown 文件和 images 文件夹在一起，可按正文位置查看原图。")
+                    package = images_bundle(result)
+                    st.download_button("下载图片（ZIP）", data=package, file_name="检索图片.zip", mime="application/zip", disabled=st.session_state.busy, width="stretch")
+                    st.caption("仅包含检索到的图片文件，不包含正文。")
                 except (ValueError, OSError) as error:
                     st.warning(str(error))
             else:
