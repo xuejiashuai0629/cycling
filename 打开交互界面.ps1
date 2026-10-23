@@ -55,6 +55,9 @@ if (-not $python) {
 if ($python.PSIsContainer) {
     $pythonPath = Join-Path $python.FullName 'python.exe'
 }
+elseif ($python -is [System.IO.FileInfo]) {
+    $pythonPath = $python.FullName
+}
 else {
     $pythonPath = $python.Source
 }
