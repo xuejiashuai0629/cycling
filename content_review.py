@@ -38,6 +38,9 @@ def writing_contract(data: dict) -> dict:
     }
     minimum, maximum = data["strategy"]["images"]
     words = word_count_limits(data["task"].get("word_count"))
+    if platform == "门店海报":
+        poster_min, poster_max = data["strategy"].get("default_words", (10, 80))
+        words = {"minimum": poster_min, "maximum": poster_max, "detail": "门店海报短正文"}
     if words["minimum"] and words["maximum"] and words["maximum"] > words["minimum"]:
         words["target_minimum"] = round((words["minimum"] + words["maximum"]) / 2)
         words["target_maximum"] = words["maximum"]
@@ -133,6 +136,9 @@ def platform_format_issues(draft: dict, data: dict) -> list[str]:
         issues.append("缺少适合本平台的行动引导。")
     body = re.sub(r"【配图\s*I\d+\s*】", "", draft["body"]).strip()
     words = word_count_limits(data["task"].get("word_count"))
+    if platform == "门店海报":
+        poster_min, poster_max = data["strategy"].get("default_words", (10, 80))
+        words = {"minimum": poster_min, "maximum": poster_max, "detail": "门店海报短正文"}
     length = len(re.sub(r"\s", "", body))
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", body) if part.strip()]
     if platform in ("公众号", "小红书") and len(paragraphs) < 2:
