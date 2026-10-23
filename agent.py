@@ -8,7 +8,7 @@ import re
 from config import PLATFORMS, redact, runtime_issues
 import llm
 from requirements_review import SCENARIO_QUESTION, broad_scenario, confirmation_text, next_state, normalize_task
-from content_review import CHECKS, validate_draft, validate_review
+from content_review import CHECKS, platform_format_issues, validate_draft, validate_review
 from tools import KnowledgeError, collect_sources, normalized
 from image_assets import delivery_issues, usable_images
 from image_analysis import attach_analysis
@@ -190,6 +190,10 @@ def _generate_content(prepared: dict, *, resume: bool = False) -> dict:
             raw = llm.generate(data["task"], data, previous_draft=job["previous_draft"], feedback=job["feedback"])
             try:
                 draft = validate_draft(raw, data)
+                if data["task"]["platform"] == "门店海报":
+                    poster_issues = platform_format_issues(draft, data)
+                    if poster_issues:
+                        raise ValueError("；".join(poster_issues))
             except ValueError as error:
                 detail = str(error)
                 data["verification"] = [{"name": "输出结构与证据引用", "state": "fail", "detail": detail}]

@@ -34,7 +34,7 @@ def writing_contract(data: dict) -> dict:
         "公众号": {"outline": ["标题", "导语", "场景问题段", "有据解决方式段", "结尾行动引导"], "minimum_paragraphs": 2, "selling_points": "每条都是正文里的事实原句，逐条有证据", "tags": "空数组"},
         "小红书": {"outline": ["口语化标题", "短导语", "具体场景困扰", "有据特征及自然选择建议", "交流引导", "话题标签"], "minimum_paragraphs": 2, "selling_points": "每条都是正文里的事实原句，不伪造体验", "tags": "至少一个话题，不含#"},
         "门店朋友圈": {"outline": ["简短标题", "短导语", "本次场景的一件事＋一项有据特征", "一次咨询或到店引导"], "minimum_paragraphs": 1, "selling_points": "恰好一项事实特征，不把多项功能拼成一条", "tags": "空数组"},
-        "门店海报": {"outline": ["主标题放title", "副标题放intro", "1–3行- 卖点放body", "一句行动引导放cta"], "minimum_paragraphs": 1, "selling_points": "1–3项，逐字对应body中的项目符号", "tags": "空数组"},
+        "门店海报": {"outline": ["主标题放title", "副标题放intro", "1–3行- 卖点放body", "一句行动引导放cta"], "minimum_paragraphs": 1, "selling_points": "恰好1–3项，逐字等于body中每行'- '后的文本；每行只写一个卖点，≤20字", "tags": "空数组"},
     }
     minimum, maximum = data["strategy"]["images"]
     words = word_count_limits(data["task"].get("word_count"))
@@ -44,7 +44,7 @@ def writing_contract(data: dict) -> dict:
     else:
         words["target_minimum"] = words["minimum"]
         words["target_maximum"] = words["maximum"]
-    return {
+    contract = {
         "platform": platform, **rules[platform],
         "tone": data["task"].get("tone") or "专业导购",
         "image_count": {"minimum": minimum, "maximum": maximum},
@@ -54,6 +54,9 @@ def writing_contract(data: dict) -> dict:
         "fact_mapping": "selling_points只列正文中的产品事实原句，不混入建议；每项逐字包含在某条claims.text内，quote逐字摘自对应原文。所有数值和限定条件都必须有据。",
         "reader_voice": "title/intro/body/cta面向读者；不写内部审核过程，不以免责声明代替内容，不编造价格、库存、适配或实测。",
     }
+    if platform == "门店海报":
+        contract["body_format"] = "body只允许1–3行，每行以'- '开头；每行≤20个汉字，一行只写一个卖点；禁止导语段、解释段、补充说明、结尾段和第二个卖点。selling_points逐字等于每行去掉'- '后的内容，数量与行数一致。"
+    return contract
 
 
 def insert_planned_images(draft: dict) -> dict:
@@ -140,8 +143,11 @@ def platform_format_issues(draft: dict, data: dict) -> list[str]:
         issues.append("门店朋友圈必须只围绕一个核心卖点展开。")
     if platform == "门店海报":
         bullets = [line[2:].strip() for line in body.splitlines() if line.startswith("- ")]
-        if not 1 <= len(draft["selling_points"]) <= 3 or bullets != draft["selling_points"] or any(line.strip() and not line.startswith("- ") for line in body.splitlines()):
+        non_bullets = [line.strip() for line in body.splitlines() if line.strip() and not line.startswith("- ")]
+        if not 1 <= len(draft["selling_points"]) <= 3 or bullets != draft["selling_points"] or non_bullets:
             issues.append("海报正文必须为1–3条卖点，每条使用“- ”单列，并与卖点清单一致；不可套用文章正文。")
+        elif any(len(re.sub(r"\s", "", bullet)) > 20 for bullet in bullets):
+            issues.append("海报每条卖点必须≤20字，一条只写一个功能或参数，不要用逗号、分号连接第二卖点。")
     for point in draft["selling_points"]:
         if not contains_normalized(draft["body"], point):
             issues.append("卖点清单必须与实际正文中的卖点一致。")
